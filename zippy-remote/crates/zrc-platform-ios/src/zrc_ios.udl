@@ -1,0 +1,50 @@
+// UniFFI UDL file for zrc-platform-ios
+
+namespace zrc_ios {
+    // Error types
+    enum ZrcError {
+        general { message: string };
+        not_paired;
+        session_not_found;
+        connection_failed { message: string };
+        authentication_failed { message: string };
+        timeout;
+        invalid_input { message: string };
+        permission_denied { message: string };
+        crypto { message: string };
+        store { message: string };
+        transport { message: string };
+    };
+
+    // Frame data
+    record FrameData {
+        data: sequence<u8>;
+        width: u32;
+        height: u32;
+        timestamp: u64;
+    };
+
+    // Mouse button
+    enum MouseButton {
+        left;
+        right;
+        middle;
+    };
+
+    // Input events
+    enum InputEvent {
+        mouse_move { x: i32; y: i32 };
+        mouse_click { x: i32; y: i32; button: MouseButton };
+        key_press { code: u32; down: bool };
+        scroll { delta_x: i32; delta_y: i32 };
+    };
+
+    // Core interface
+    object ZrcCore {
+        constructor new(config_json: string) throws ZrcError;
+        async start_session(device_id: sequence<u8>) throws ZrcError returns u64;
+        async end_session(session_id: u64) throws ZrcError;
+        async poll_frame(session_id: u64) returns FrameData?;
+        async send_input(session_id: u64, event: InputEvent) throws ZrcError;
+    };
+};

@@ -1,0 +1,25 @@
+# Example configuration file for zrc-dirnode
+
+# Server listen address
+listen_addr = "0.0.0.0:8080"
+
+# Database path (SQLite)
+database_path = "dirnode.db"
+
+# Enable web UI (optional, requires web-ui feature)
+web_ui_enabled = false
+
+# Access mode: "invite_only", "discovery_enabled", or "open"
+access_mode = "invite_only"
+
+# Maximum record TTL in seconds (default: 86400 = 24 hours)
+max_record_ttl_seconds = 86400
+
+# Maximum discovery token TTL in seconds (default: 3600 = 1 hour)
+max_discovery_ttl_seconds = 3600
+
+# Rate limit per IP per minute (default: 60)
+rate_limit_per_minute = 60
+
+# Admin tokens for discovery token management
+# admin_tokens = ["token1", "token2"]

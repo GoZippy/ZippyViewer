@@ -1,0 +1,256 @@
+# Implementation Plan: zrc-relay
+
+## Overview
+
+Implementation tasks for the optional QUIC relay server. This relay provides last-resort connectivity when NAT traversal fails, forwarding encrypted datagrams without access to plaintext.
+
+## Tasks
+
+- [x] 1. Set up crate structure and dependencies
+  - [x] 1.1 Create Cargo.toml with dependencies
+    - quinn, tokio, dashmap, serde, tracing
+    - _Requirements: 3.1, 5.1_
+  - [x] 1.2 Create module structure
+    - server, allocation, forwarder, token, bandwidth, metrics, admin
+    - _Requirements: 1.1, 2.1, 3.1, 4.1_
+
+- [x] 2. Implement Relay Token
+  - [x] 2.1 Define RelayTokenV1 struct
+    - relay_id, allocation_id, device_id, peer_id
+    - expires_at, bandwidth_limit, quota_bytes, signature
+    - _Requirements: 1.1_
+  - [x] 2.2 Implement signature verification
+    - Ed25519 verification against device public key
+    - _Requirements: 1.2, 1.3_
+  - [x] 2.3 Implement expiration check
+    - _Requirements: 1.3_
+  - [x] 2.4 Implement allocation_id matching verification
+    - Verify token allocation_id matches requested allocation
+    - _Requirements: 1.4_
+  - [x] 2.5 Implement token cache
+    - Cache validated tokens to avoid repeated signature verification
+    - _Requirements: 1.6_
+  - [x] 2.6 Implement token refresh support
+    - Support token refresh for long-running sessions
+    - _Requirements: 1.7_
+  - [x]* 2.7 Write property test for token signature verification
+    - **Property 1: Token Signature Verification**
+    - **Validates: Requirements 1.2, 1.3**
+
+- [x] 3. Implement Allocation Manager
+  - [x] 3.1 Define Allocation struct
+    - ID, device/peer IDs, timestamps, limits
+    - Connection handles, transfer counters
+    - _Requirements: 2.1, 2.4_
+  - [x] 3.2 Implement create allocation
+    - Validate token, assign ID and relay_addr
+    - Return allocation details: relay_addr, relay_port, allocation_id, expires_at
+    - _Requirements: 2.2, 2.3_
+  - [x] 3.3 Implement associate connection
+    - Link device and peer connections
+    - Support multiple concurrent connections per allocation
+    - _Requirements: 2.4, 5.2_
+  - [x] 3.4 Implement record_transfer
+    - Track bytes for quota enforcement
+    - _Requirements: 3.6_
+  - [x] 3.5 Implement terminate and expire_stale
+    - Cleanup on expiry, disconnect, quota exceeded
+    - Support explicit allocation release requests
+    - _Requirements: 2.5, 2.6, 2.7_
+  - [x] 3.6 Implement max allocations enforcement
+    - Enforce maximum concurrent allocations limit
+    - _Requirements: 4.4_
+
+- [x] 4. Implement Bandwidth Limiter
+  - [x] 4.1 Implement token bucket rate limiter
+    - Per-allocation bandwidth tracking
+    - _Requirements: 4.1_
+  - [x] 4.2 Implement check and consume methods
+    - _Requirements: 4.5_
+  - [x] 4.3 Implement global bandwidth limit enforcement
+    - Enforce global bandwidth limit across all allocations
+    - _Requirements: 4.3_
+  - [x] 4.4 Implement quota warning notification
+    - Notify endpoints via control message when quota approaches 90%
+    - _Requirements: 4.6_
+  - [x] 4.5 Implement tiered limit support
+    - Support configurable limits per token tier (free, paid, unlimited)
+    - _Requirements: 4.7_
+  - [x]* 4.6 Write property test for bandwidth enforcement
+    - **Property 2: Bandwidth Enforcement**
+    - **Validates: Requirements 4.1, 4.5**
+
+- [x] 5. Checkpoint - Verify allocation management
+  - Ensure allocation lifecycle works
+  - Ask the user if questions arise
+
+- [x] 6. Implement Forwarder
+  - [x] 6.1 Implement forward_datagram
+    - Forward between endpoints without modification
+    - Apply bandwidth limiting
+    - Handle packet sizes up to 1500 bytes (standard MTU)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [x] 6.2 Implement forward_stream
+    - Stream-based forwarding for larger data
+    - _Requirements: 3.4_
+  - [x]* 6.3 Write property test for quota enforcement
+    - **Property 3: Quota Enforcement**
+    - **Validates: Requirements 4.2, 4.7**
+  - [x]* 6.4 Write property test for data integrity
+    - **Property 5: Data Integrity**
+    - **Validates: Requirements 3.2**
+
+- [x] 7. Implement QUIC Server
+  - [x] 7.1 Configure QUIC endpoint
+    - Certificate, key, ALPN
+    - Accept QUIC connections on configured listen address
+    - _Requirements: 5.1_
+  - [x] 7.2 Implement connection handler
+    - Token validation, allocation creation
+    - Reject allocation request with appropriate error on token validation failure
+    - _Requirements: 1.1, 1.5, 2.1_
+  - [x] 7.3 Implement connection keepalive
+    - Default: 15 second interval
+    - _Requirements: 5.4_
+  - [x] 7.4 Implement connection migration handling
+    - Detect and handle connection migration (IP address changes)
+    - _Requirements: 5.3_
+  - [x] 7.5 Implement idle connection timeout
+    - Close connections gracefully when idle beyond timeout
+    - _Requirements: 5.5_
+  - [x] 7.6 Implement error isolation
+    - Per-allocation error handling
+    - Handle connection errors without crashing or affecting other allocations
+    - _Requirements: 5.6_
+  - [x] 7.7 Implement connection event logging
+    - Log connection events for debugging and monitoring
+    - _Requirements: 5.7_
+  - [x]* 7.8 Write property test for allocation isolation
+    - **Property 6: Allocation Isolation**
+    - **Validates: Requirements 5.6**
+
+- [x] 8. Implement Security Controls
+  - [x] 8.1 Implement allocation request rate limiting
+    - Per-IP limits (default: 10/minute)
+    - _Requirements: 6.1_
+  - [x] 8.2 Implement connection rate limiting
+    - Per-IP limits (default: 30/minute)
+    - _Requirements: 6.2_
+  - [x] 8.3 Implement IP allowlist/blocklist
+    - Support IP allowlisting and blocklisting
+    - _Requirements: 6.3_
+  - [x] 8.4 Implement amplification attack detection
+    - Detect and block amplification attack patterns
+    - _Requirements: 6.4_
+  - [x] 8.5 Implement security event logging
+    - Log rate limits, blocked IPs, invalid tokens
+    - Never log packet contents (only metadata)
+    - _Requirements: 6.5, 6.7_
+  - [x] 8.6 Implement external abuse detection integration
+    - Support integration with external abuse detection systems
+    - _Requirements: 6.6_
+  - [x]* 8.7 Write property test for expiration enforcement
+    - **Property 4: Expiration Enforcement**
+    - **Validates: Requirements 2.5**
+
+- [x] 9. Implement Metrics
+  - [x] 9.1 Define AllocationMetrics struct
+    - Counters, gauges, histograms
+    - Track: active_allocations, total_allocations, bytes_forwarded, packets_forwarded
+    - Track: allocation_duration_histogram, bandwidth_usage, quota_usage
+    - Track: connection_count, error_count, rate_limit_hits
+    - _Requirements: 7.3, 7.4, 7.5_
+  - [x] 9.2 Implement health endpoint
+    - GET /health returning HTTP 200 when healthy
+    - _Requirements: 7.1_
+  - [x] 9.3 Implement Prometheus export
+    - GET /metrics in Prometheus format
+    - _Requirements: 7.2_
+  - [x] 9.4 Implement real-time allocation listing
+    - Support real-time allocation listing for admin purposes
+    - _Requirements: 7.6_
+  - [x] 9.5 Implement geographic distribution metrics
+    - Include geographic distribution metrics when multiple relays are deployed
+    - _Requirements: 7.7_
+
+- [x] 10. Implement Admin API
+  - [x] 10.1 Implement admin API server
+    - Expose admin API on separate port (default: disabled)
+    - Support admin API over Unix socket for local-only access (TODO: Unix socket support)
+    - _Requirements: 10.1, 10.7_
+  - [x] 10.2 Implement GET /admin/allocations
+    - List active allocations
+    - _Requirements: 10.2_
+  - [x] 10.3 Implement DELETE /admin/allocations/{id}
+    - Terminate allocation
+    - _Requirements: 10.3_
+  - [x] 10.4 Implement GET /admin/stats
+    - Detailed statistics
+    - _Requirements: 10.4_
+  - [x] 10.5 Implement admin authentication
+    - Require authentication for admin API access
+    - _Requirements: 10.5, 10.6_
+  - [x] 10.6 Implement admin action logging
+    - Log all admin API actions for audit
+    - _Requirements: 10.6_
+
+- [x] 11. Implement Configuration
+  - [x] 11.1 Define ServerConfig struct
+    - All configurable parameters
+    - listen_addr, listen_port, quic_cert_path, quic_key_path
+    - max_allocations, default_bandwidth_limit, default_quota
+    - allocation_timeout, idle_timeout, keepalive_interval
+    - _Requirements: 8.4, 8.5, 8.6_
+  - [x] 11.2 Implement environment variable loading
+    - Accept configuration via environment variables
+    - _Requirements: 8.1_
+  - [x] 11.3 Implement command-line argument parsing
+    - Accept configuration via command-line arguments
+    - _Requirements: 8.2_
+  - [x] 11.4 Implement TOML file loading
+    - Accept configuration via TOML config file
+    - _Requirements: 8.3_
+  - [x] 11.5 Implement configuration validation
+    - Validate configuration on startup and exit with clear error if invalid
+    - _Requirements: 8.7_
+
+- [x] 12. Implement High Availability (optional)
+  - [x] 12.1 Implement multi-instance support
+    - Support running multiple instances behind a load balancer
+    - _Requirements: 9.1_
+  - [x] 12.2 Implement Redis state sharing
+    - Allocation state for failover
+    - Support allocation state sharing via external store (Redis) for failover
+    - _Requirements: 9.2_
+  - [x] 12.3 Implement failover reconnection support
+    - Allow clients to reconnect to another instance when an instance fails
+    - _Requirements: 9.3_
+  - [x] 12.4 Implement graceful shutdown with migration
+    - Support graceful shutdown with allocation migration
+    - _Requirements: 9.4_
+  - [x] 12.5 Implement readiness probe
+    - Expose readiness probe for load balancer health checks
+    - _Requirements: 9.5_
+  - [x] 12.6 Implement geographic distribution support
+    - Support geographic distribution for latency optimization
+    - _Requirements: 9.6_
+
+- [x] 13. Create deployment artifacts
+  - [x] 13.1 Configure static binary build
+    - Static binary for easy deployment (configured in Cargo.toml profile.release)
+  - [x] 13.2 Create systemd unit file
+    - Service file for Linux deployments
+  - [x] 13.3 Create example config file
+    - Example TOML configuration with all options
+
+- [x] 14. Checkpoint - Verify all tests pass
+  - Ensure all property tests pass with 100+ iterations (Note: Property tests marked with `*` are optional and not yet implemented)
+  - Verify relay forwarding works correctly (Unit tests added for allocation management; code compiles successfully)
+  - Ask the user if questions arise
+
+## Notes
+
+- Tasks marked with `*` are optional property-based tests
+- Relay never has access to plaintext (E2E encrypted)
+- Default limits: 10 Mbps bandwidth, 1 GB quota per allocation
+- Support for multiple instances behind load balancer

@@ -1,0 +1,21 @@
+[Unit]
+Description=ZRC Remote Control Agent
+After=network.target graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/zrc-agent
+Restart=on-failure
+RestartSec=10
+WatchdogSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/var/lib/zrc-agent
+
+[Install]
+WantedBy=default.target

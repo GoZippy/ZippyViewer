@@ -1,0 +1,24 @@
+# cargo-audit configuration for zrc-security
+# Requirements: 13.3
+
+[database]
+# Use the default advisory database
+# Can be overridden with CARGO_AUDIT_DB environment variable
+
+[advisory]
+# Ignore advisories (use with caution - only for false positives)
+# ignore = []
+
+# Only report advisories with severity >= this level
+# Options: low, moderate, high, critical
+# severity = "low"
+
+[output]
+# Output format: json, text
+# format = "text"
+
+# Show informational messages
+# informational = true
+
+# Show informational messages about dependency updates
+# informational-warn = true

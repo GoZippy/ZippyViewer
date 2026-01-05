@@ -1,0 +1,34 @@
+# zrc-rendezvous Configuration Example
+# Copy this file and customize for your deployment
+
+# Server bind address
+bind_addr = "0.0.0.0:8080"
+
+# TLS Configuration (optional)
+# tls_cert_path = "/etc/ssl/certs/zrc-rendezvous.crt"
+# tls_key_path = "/etc/ssl/private/zrc-rendezvous.key"
+
+# Mailbox settings
+max_message_size = 65536  # 64KB
+max_queue_length = 100
+message_ttl_secs = 300    # 5 minutes
+eviction_interval_secs = 30
+idle_mailbox_timeout_secs = 3600  # 1 hour
+memory_limit_mb = 50
+
+# Rate limiting
+[rate_limit]
+post_limit = 60      # requests per window
+get_limit = 120       # requests per window
+window_secs = 60      # time window in seconds
+
+# Authentication
+auth_mode = "disabled"  # "disabled", "server_wide", or "per_mailbox"
+server_tokens = []      # List of server-wide tokens
+
+# IP allowlist/blocklist
+allowlist = []  # e.g., ["192.168.1.0/24", "10.0.0.1"]
+blocklist = []  # e.g., ["192.168.1.100"]
+
+# Graceful shutdown timeout
+shutdown_timeout_secs = 30

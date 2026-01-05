@@ -1,0 +1,33 @@
+[package]
+name = "zrc-platform-android"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[lib]
+name = "zrc_android"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync", "time"] }
+bytes = "1"
+async-trait = "0.1"
+zeroize = { version = "1.7", features = ["zeroize_derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+prost = "0.13"
+
+# JNI for Android bindings
+jni = "0.21"
+
+# Core dependencies
+zrc-core = { path = "../zrc-core" }
+zrc-crypto = { path = "../zrc-crypto" }
+zrc-proto = { path = "../zrc-proto/proto" }
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+proptest = "1.4"

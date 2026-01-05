@@ -1,0 +1,24 @@
+# zrc-relay Configuration Example
+# Copy this file and modify as needed
+
+# QUIC server configuration
+listen_addr = "0.0.0.0:4433"
+quic_cert_path = "/etc/zrc-relay/cert.pem"
+quic_key_path = "/etc/zrc-relay/key.pem"
+
+# Allocation limits
+max_allocations = 1000
+default_bandwidth_limit = 10485760  # 10 Mbps in bytes per second
+default_quota = 1073741824  # 1 GB in bytes
+
+# Timeouts (in seconds)
+allocation_timeout_secs = 28800  # 8 hours
+idle_timeout_secs = 30
+keepalive_interval_secs = 15
+
+# Admin API (optional)
+# admin_addr = "127.0.0.1:8081"
+# admin_token = "your-secure-admin-token-here"
+
+# Global bandwidth limit (optional, in bytes per second)
+# global_bandwidth_limit = 1073741824  # 1 Gbps

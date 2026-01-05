@@ -1,0 +1,17 @@
+# Clippy configuration for zrc-security
+# Requirements: 13.3
+#
+# Note: Clippy configuration is typically done via code attributes or workspace config.
+# This file documents recommended linting settings.
+#
+# To enable security-focused linting, add to Cargo.toml or use attributes:
+#
+# [lints.clippy]
+# unwrap_used = "warn"
+# expect_used = "warn"
+# panic = "warn"
+# integer_arithmetic = "warn"
+# cast_possible_truncation = "warn"
+# indexing_slicing = "warn"
+#
+# Or run: cargo clippy -p zrc-security -- -W clippy::unwrap_used -W clippy::expect_used

@@ -1,0 +1,20 @@
+[Unit]
+Description=ZRC Remote Control Agent (User Service)
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=notify
+ExecStart=%h/.local/bin/zrc-agent
+Restart=on-failure
+RestartSec=10
+WatchdogSec=30
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=false
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

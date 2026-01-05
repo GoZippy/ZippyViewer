@@ -1,0 +1,27 @@
+[Unit]
+Description=ZRC Rendezvous Mailbox Server
+After=network.target
+
+[Service]
+Type=simple
+User=zrc-rendezvous
+Group=zrc-rendezvous
+WorkingDirectory=/opt/zrc-rendezvous
+ExecStart=/opt/zrc-rendezvous/zrc-rendezvous
+Restart=always
+RestartSec=10
+
+# Environment variables (optional, can also use config file)
+# Environment="ZRC_BIND_ADDR=0.0.0.0:8080"
+# Environment="ZRC_CONFIG_PATH=/etc/zrc-rendezvous/config.toml"
+# Environment="RUST_LOG=info"
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/zrc-rendezvous
+
+[Install]
+WantedBy=multi-user.target

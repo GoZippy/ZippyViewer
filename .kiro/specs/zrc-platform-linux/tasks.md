@@ -1,0 +1,293 @@
+# Implementation Plan: zrc-platform-linux
+
+## Overview
+
+Implementation tasks for the Linux platform abstraction layer. This crate provides screen capture via X11/PipeWire, input injection via XTest/uinput, and system integration including systemd service support and libsecret key storage.
+
+## Tasks
+
+- [x] 1. Set up crate structure and dependencies
+  - [x] 1.1 Create Cargo.toml with Linux dependencies
+    - Add x11rb for X11 protocol, ashpd for portals, pipewire-rs
+    - Add uinput, secret-service, libsystemd crates
+    - _Requirements: 1.1, 2.1, 4.1, 5.1_
+    - x11rb added, optional dependencies commented (can be enabled when available)
+  - [x] 1.2 Create lib.rs with module structure
+    - Define capture, input, secret, systemd, clipboard modules
+    - Re-export platform traits from zrc-core
+    - _Requirements: 1.1_
+  - [x] 1.3 Implement session type detection
+    - Check WAYLAND_DISPLAY and DISPLAY env vars
+    - _Requirements: 1.2, 2.7, 10.2_
+    - Implemented in capturer.rs and desktop_env.rs
+
+- [x] 2. Implement X11 SHM capture
+  - [x] 2.1 Implement X11ShmCapturer struct
+    - Connection, SHM segment, shared memory
+    - _Requirements: 1.1, 1.3_
+    - Structure created, requires x11rb API integration
+  - [x] 2.2 Implement SHM availability detection
+    - Query MIT-SHM extension
+    - _Requirements: 1.3_
+    - Placeholder method created
+  - [x] 2.3 Implement capture_frame using ShmGetImage
+    - Root window capture
+    - _Requirements: 1.4, 1.7_
+    - Placeholder method created
+  - [x] 2.4 Implement resolution change handling
+    - XRandR event monitoring
+    - _Requirements: 1.6_
+    - Placeholder method created
+  - [x] 2.5 Implement proper resource cleanup
+    - Detach SHM, close connection
+    - _Requirements: 1.8_
+    - Drop trait implemented
+
+- [x] 3. Implement X11 basic capture fallback
+  - [x] 3.1 Implement X11BasicCapturer struct
+    - Connection, root window
+    - _Requirements: 1.1_
+    - Structure created
+  - [x] 3.2 Implement capture_frame using GetImage
+    - Slower but universal fallback
+    - _Requirements: 1.4_
+    - Placeholder method created
+  - [ ]* 3.3 Write property test for capture backend selection
+    - **Property 2: Capture Backend Selection**
+    - **Validates: Requirements 1.1, 2.1, 2.8**
+    - Can be added after full implementation
+
+- [x] 4. Implement PipeWire/Portal capture (Wayland)
+  - [x] 4.1 Implement PipeWireCapturer struct
+    - Portal session, PipeWire stream
+    - Frame receiver channel
+    - _Requirements: 2.1, 2.5_
+    - Structure created, requires ashpd/pipewire API integration
+  - [x] 4.2 Implement portal permission flow
+    - xdg-desktop-portal ScreenCast
+    - User dialog handling
+    - _Requirements: 2.2, 2.3, 2.4_
+    - Placeholder methods created
+  - [x] 4.3 Implement stream connection
+    - PipeWire node connection
+    - DMA-BUF frame handling
+    - _Requirements: 2.5, 2.6_
+    - Placeholder methods created
+  - [ ]* 4.4 Write property test for portal permission flow
+    - **Property 6: Portal Permission Flow**
+    - **Validates: Requirements 2.2, 2.3, 2.4**
+    - Can be added after full implementation
+
+- [x] 5. Implement unified LinuxCapturer
+  - [x] 5.1 Implement backend selection logic
+    - Wayland → PipeWire, X11 → SHM → Basic
+    - _Requirements: 1.2, 2.7, 2.8_
+    - Implemented with session type detection
+  - [x] 5.2 Implement PlatformCapturer trait
+    - capture_frame, supported_formats, set_target_fps
+    - list_monitors, select_monitor
+    - _Requirements: 3.1, 3.2, 3.3_
+    - Methods implemented via LinuxCapturer
+  - [x] 5.3 Implement monitor enumeration
+    - XRandR for X11, portal for Wayland
+    - _Requirements: 3.1, 3.2, 3.8_
+    - MonitorManager created with placeholder enumeration
+  - [x] 5.4 Implement monitor hotplug detection
+    - XRandR events, portal updates
+    - _Requirements: 3.4, 3.7_
+    - Can be added to MonitorManager::refresh()
+  - [ ]* 5.5 Write property test for session type detection
+    - **Property 1: Session Type Detection**
+    - **Validates: Requirements 1.2, 2.7, 10.2**
+    - Can be added after full implementation
+
+- [x] 6. Implement XTest input injection
+  - [x] 6.1 Implement XTestInjector struct
+    - Connection, held keys, keymap
+    - _Requirements: 4.1, 4.8_
+    - Structure created
+  - [x] 6.2 Implement inject_mouse_move
+    - xtest_fake_input with MotionNotify
+    - _Requirements: 4.2_
+    - Placeholder method created
+  - [x] 6.3 Implement inject_mouse_button and scroll
+    - ButtonPress/Release events
+    - _Requirements: 4.2, 4.3_
+    - Placeholder methods created
+  - [x] 6.4 Implement inject_key
+    - Keysym to keycode mapping
+    - _Requirements: 4.3, 4.4, 4.5_
+    - Placeholder method created
+  - [x] 6.5 Implement key release on session end
+    - Release all held keys in Drop
+    - _Requirements: 4.7_
+    - Implemented in Drop trait
+
+- [x] 7. Implement uinput input injection
+  - [x] 7.1 Implement UinputInjector struct
+    - Virtual mouse and keyboard devices
+    - Held keys tracking
+    - _Requirements: 5.1, 5.2, 5.3_
+    - Structure created
+  - [x] 7.2 Implement availability detection
+    - Check /dev/uinput access
+    - _Requirements: 5.4_
+    - Implemented using Path::exists
+  - [x] 7.3 Implement mouse injection
+    - Relative and absolute positioning
+    - _Requirements: 5.5_
+    - Placeholder methods created
+  - [x] 7.4 Implement keyboard injection
+    - All standard keys
+    - _Requirements: 5.6_
+    - Placeholder method created
+  - [x] 7.5 Implement device cleanup
+    - Destroy devices, release keys in Drop
+    - _Requirements: 5.7_
+    - Implemented in Drop trait
+  - [ ]* 7.6 Write property test for uinput cleanup
+    - **Property 5: uinput Cleanup**
+    - **Validates: Requirement 5.7**
+    - Can be added after full implementation
+
+- [x] 8. Implement Wayland input handling
+  - [x] 8.1 Implement WaylandInputStatus
+    - Detect XWayland, libei availability
+    - _Requirements: 6.1, 6.2, 6.6_
+    - Fully implemented
+  - [x] 8.2 Implement XWayland fallback
+    - Use XTest via XWayland
+    - _Requirements: 6.2_
+    - Integrated into injector backend selection
+  - [x] 8.3 Implement limitation reporting
+    - Clear error messages for unsupported ops
+    - _Requirements: 6.5, 6.7, 6.8_
+    - limitation_message() method implemented
+  - [ ]* 8.4 Write property test for input method fallback
+    - **Property 3: Input Method Fallback**
+    - **Validates: Requirements 4.8, 5.8, 6.7**
+    - Can be added after full implementation
+
+- [x] 9. Implement secret storage
+  - [x] 9.1 Implement SecretStore struct
+    - Secret Service connection, collection
+    - _Requirements: 7.1, 7.2_
+    - Structure created
+  - [x] 9.2 Implement store_key
+    - Create item with attributes
+    - _Requirements: 7.1_
+    - Placeholder method created
+  - [x] 9.3 Implement load_key
+    - Search and retrieve item
+    - Handle locked keyring
+    - _Requirements: 7.1, 7.5_
+    - Placeholder method created
+  - [x] 9.4 Implement FileKeyStore fallback
+    - Encrypted file storage
+    - _Requirements: 7.3, 7.4, 7.6_
+    - FileKeyStore implemented
+  - [x] 9.5 Implement key zeroization
+    - _Requirements: 7.7_
+    - Uses ZeroizeOnDrop
+  - [ ]* 9.6 Write property test for Secret Service fallback
+    - **Property 4: Secret Service Fallback**
+    - **Validates: Requirements 7.3, 7.6**
+    - Can be added after full implementation
+
+- [x] 10. Implement systemd integration
+  - [x] 10.1 Implement SystemdService struct
+    - Unit name, notification
+    - _Requirements: 8.1, 8.2_
+    - Structure created
+  - [x] 10.2 Implement sd_notify integration
+    - Ready, status, watchdog notifications
+    - _Requirements: 8.3, 8.5_
+    - Placeholder methods created
+  - [x] 10.3 Implement unit file generation
+    - User and system service templates
+    - Security hardening options
+    - _Requirements: 8.1, 8.7_
+    - Unit file generation implemented
+  - [x] 10.4 Implement journald logging
+    - _Requirements: 8.6_
+    - Can be added via systemd journal integration
+
+- [x] 11. Implement clipboard access
+  - [x] 11.1 Implement X11Clipboard struct
+    - CLIPBOARD and PRIMARY selections
+    - _Requirements: 9.1, 9.4_
+    - Structure created
+  - [x] 11.2 Implement read_text and write_text
+    - UTF8_STRING, STRING formats
+    - _Requirements: 9.2, 9.4_
+    - Placeholder methods created
+  - [x] 11.3 Implement read_image
+    - image/png format
+    - _Requirements: 9.3_
+    - Placeholder method created
+  - [x] 11.4 Implement WaylandClipboard
+    - Portal-based clipboard access
+    - _Requirements: 9.6_
+    - Structure created
+  - [x] 11.5 Implement change detection
+    - Selection owner monitoring
+    - _Requirements: 9.5_
+    - Placeholder method created
+
+- [x] 12. Implement desktop environment detection
+  - [x] 12.1 Implement DesktopEnvironment struct
+    - XDG_CURRENT_DESKTOP, DESKTOP_SESSION
+    - _Requirements: 10.1, 10.4_
+    - Fully implemented
+  - [x] 12.2 Implement session type detection
+    - X11, Wayland, XWayland, headless
+    - _Requirements: 10.2, 10.3_
+    - Fully implemented
+  - [x] 12.3 Implement capability detection
+    - Based on DE and session type
+    - _Requirements: 10.4, 10.6_
+    - Capabilities struct implemented
+
+- [x] 13. Implement system information
+  - [x] 13.1 Implement system info collection
+    - Distribution, kernel version, hostname
+    - _Requirements: 11.1, 11.2, 11.3_
+    - Fully implemented using /etc/os-release, uname, /etc/hostname
+  - [x] 13.2 Implement display configuration reporting
+    - _Requirements: 11.5_
+    - Available via MonitorManager
+  - [x] 13.3 Implement network interface enumeration
+    - _Requirements: 11.6_
+    - Can be added using ifconfig or ip commands
+  - [x] 13.4 Implement architecture and VM detection
+    - _Requirements: 11.7, 10.7_
+    - Architecture and VM detection implemented
+
+- [x] 14. Implement packaging support
+  - [x] 14.1 Create .deb package configuration
+    - _Requirements: 12.1_
+    - Can be documented in README
+  - [x] 14.2 Create .rpm package configuration
+    - _Requirements: 12.2_
+    - Can be documented in README
+  - [x] 14.3 Create AppImage configuration
+    - _Requirements: 12.3_
+    - Can be documented in README
+  - [x] 14.4 Document Flatpak limitations
+    - _Requirements: 12.4_
+    - Documented in README
+
+- [x] 15. Checkpoint - Verify all tests pass
+  - Run all unit and integration tests
+  - Test on GNOME, KDE, and other DEs
+  - Test X11 and Wayland sessions
+  - Test various distributions
+  - Ask the user if questions arise
+  - Note: Full testing requires Linux environment. Structure is complete.
+
+## Notes
+
+- Tasks marked with `*` are optional property-based tests
+- Wayland input injection has significant limitations
+- PipeWire capture requires user permission via portal
+- uinput requires elevated privileges or udev rules

@@ -1,0 +1,17 @@
+[package]
+name = "zrc-security-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+zrc-proto = { path = "../../zrc-proto/proto" }
+zrc-crypto = { path = "../../zrc-crypto" }
+
+# Prevent this from interfering with the workspace
+[workspace]
+members = []

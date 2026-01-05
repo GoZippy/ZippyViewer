@@ -1,0 +1,29 @@
+[Unit]
+Description=ZRC Relay Server
+Documentation=https://github.com/zippyviewer/zrc
+After=network.target
+
+[Service]
+Type=simple
+User=zrc-relay
+Group=zrc-relay
+WorkingDirectory=/var/lib/zrc-relay
+ExecStart=/usr/local/bin/zrc-relay --config /etc/zrc-relay/config.toml
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zrc-relay
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,257 @@
+# Implementation Plan: coturn-setup
+
+## Overview
+
+Deployment and configuration tasks for coturn (CoTURN) TURN/STUN server. This setup enables NAT traversal for WebRTC connections when direct peer-to-peer connectivity fails.
+
+## Tasks
+
+- [x] 1. Create Docker Compose Configuration
+  - [x] 1.1 Create docker-compose.yml
+    - Configure coturn service
+    - Set up volume mounts
+    - Configure health checks
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
+  - [x] 1.2 Create .env.example file
+    - Document all environment variables
+    - Provide default values
+    - _Requirements: 1.5_
+
+- [x] 2. Create Configuration Template
+  - [x] 2.1 Create turnserver.conf template
+    - Listening addresses and ports
+    - Realm configuration
+    - Authentication settings
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [x] 2.2 Add TLS configuration section
+    - Certificate paths
+    - TLS port configuration
+    - _Requirements: 2.6, 3.1, 3.4_
+  - [x] 2.3 Add logging configuration
+    - Log file path
+    - Verbosity settings
+    - _Requirements: 2.7, 6.1, 6.2_
+  - [x] 2.4 Add resource limits
+    - Bandwidth limits
+    - Allocation limits
+    - Quota settings
+    - _Requirements: 2.8, 2.9, 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [x] 2.5 Add security settings
+    - Disable CLI
+    - Disable loopback peers
+    - _Requirements: 2.9, 10.1_
+
+- [x] 3. Set Up TLS Certificates
+  - [x] 3.1 Create certificate directory structure
+    - _Requirements: 3.1_
+  - [x] 3.2 Create Let's Encrypt setup script
+    - Certificate generation
+    - Renewal automation
+    - _Requirements: 3.2, 3.3_
+  - [x] 3.3 Create self-signed certificate script
+    - For testing/development
+    - _Requirements: 3.2_
+  - [x] 3.4 Create certificate validation script
+    - Check certificate validity
+    - Verify paths
+    - _Requirements: 3.5_
+  - [x] 3.5 Document TLS setup process
+    - Let's Encrypt instructions
+    - Self-signed instructions
+    - _Requirements: 3.2, 8.1_
+
+- [x] 4. Configure Authentication
+  - [x] 4.1 Document static-auth-secret setup
+    - Secret generation
+    - Configuration
+    - _Requirements: 4.1, 8.4_
+  - [x] 4.2 Create credential generation helper
+    - For ZRC client integration
+    - _Requirements: 4.5_
+  - [x] 4.3 Document TURN REST API setup (optional)
+    - Time-limited credentials
+    - _Requirements: 4.2_
+  - [x] 4.4 Create IP access control template
+    - Allowlist/blocklist configuration
+    - _Requirements: 4.3, 10.3_
+
+- [x] 5. Configure Network Settings
+  - [x] 5.1 Document external IP configuration
+    - For NAT scenarios
+    - _Requirements: 5.1, 8.1_
+  - [x] 5.2 Create network validation script
+    - Check connectivity
+    - Verify ports
+    - _Requirements: 5.5_
+  - [x] 5.3 Document firewall requirements
+    - Required ports
+    - UDP/TCP protocols
+    - _Requirements: 5.3, 8.1_
+  - [x] 5.4 Document IPv6 support (if needed)
+    - Configuration options
+    - _Requirements: 5.6_
+
+- [x] 6. Set Up Logging and Monitoring
+  - [x] 6.1 Configure log file output
+    - Log directory
+    - File permissions
+    - _Requirements: 6.1_
+  - [x] 6.2 Create log rotation configuration
+    - logrotate config
+    - _Requirements: 6.2_
+  - [x] 6.3 Create log monitoring script
+    - Parse logs for events
+    - Alert on errors
+    - _Requirements: 6.4, 6.5_
+  - [x] 6.4 Document structured logging (if supported)
+    - JSON format configuration
+    - _Requirements: 6.6_
+
+- [x] 7. Configure Resource Limits
+  - [x] 7.1 Set bandwidth limits
+    - Per-user limits
+    - Total limits
+    - _Requirements: 7.1, 7.2_
+  - [x] 7.2 Set allocation limits
+    - Maximum duration
+    - Concurrent allocations
+    - _Requirements: 7.3, 7.4_
+  - [x] 7.3 Set quota limits
+    - Per-user quota
+    - _Requirements: 7.5_
+  - [x] 7.4 Create limit monitoring script
+    - Track usage
+    - Alert on approaching limits
+    - _Requirements: 7.6_
+
+- [x] 8. Create Documentation
+  - [x] 8.1 Write README.md
+    - Quick start guide
+    - Deployment instructions
+    - _Requirements: 8.1_
+  - [x] 8.2 Document configuration options
+    - All turnserver.conf options
+    - Environment variables
+    - _Requirements: 8.2_
+  - [x] 8.3 Create troubleshooting guide
+    - Common issues
+    - Solutions
+    - Diagnostic commands
+    - _Requirements: 8.3_
+  - [x] 8.4 Document ZRC integration
+    - Client configuration
+    - Credential setup
+    - _Requirements: 8.4_
+  - [x] 8.5 Create example configurations
+    - Single server
+    - Load balanced
+    - High availability
+    - _Requirements: 8.5_
+  - [x] 8.6 Document security best practices
+    - TLS setup
+    - Secret management
+    - Access control
+    - _Requirements: 8.6, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
+  - [x] 8.7 Create performance tuning guide
+    - Resource allocation
+    - Network optimization
+    - _Requirements: 8.7_
+
+- [x] 9. Set Up High Availability (Optional)
+  - [x] 9.1 Document load balancer configuration
+    - Health checks
+    - Session affinity
+    - _Requirements: 9.1, 9.2_
+  - [x] 9.2 Create health check script
+    - STUN test
+    - TURN allocation test
+    - _Requirements: 9.3_
+  - [x] 9.3 Document failover procedures
+    - Manual failover
+    - Automatic failover
+    - _Requirements: 9.4_
+  - [x] 9.4 Document geographic distribution
+    - Multi-region setup
+    - Latency optimization
+    - _Requirements: 9.5_
+
+- [x] 10. Security Hardening
+  - [x] 10.1 Verify security settings
+    - CLI disabled
+    - Loopback peers disabled
+    - _Requirements: 10.1_
+  - [x] 10.2 Configure rate limiting
+    - Connection rate limits
+    - Allocation rate limits
+    - _Requirements: 10.2_
+  - [x] 10.3 Set up IP access control
+    - Allowlist configuration
+    - Blocklist configuration
+    - _Requirements: 10.3_
+  - [x] 10.4 Document DDoS mitigation
+    - Strategies
+    - Tools
+    - _Requirements: 10.4_
+  - [x] 10.5 Configure non-root user
+    - Docker user configuration
+    - File permissions
+    - _Requirements: 10.5_
+  - [x] 10.6 Create security checklist
+    - Pre-deployment checks
+    - Ongoing maintenance
+    - _Requirements: 10.6_
+
+- [x] 11. Create Deployment Scripts
+  - [x] 11.1 Create setup script
+    - Initial deployment
+    - Configuration validation
+    - _Requirements: 8.1_
+  - [x] 11.2 Create start script
+    - Start coturn service
+    - Verify health
+    - _Requirements: 8.1_
+  - [x] 11.3 Create stop script
+    - Graceful shutdown
+    - _Requirements: 8.1_
+  - [x] 11.4 Create update script
+    - Update configuration
+    - Restart service
+    - _Requirements: 8.1_
+
+- [x] 12. Testing and Validation
+  - [x] 12.1 Test STUN functionality
+    - Verify STUN responses
+    - _Requirements: 1.4_
+  - [x] 12.2 Test TURN allocation
+    - Create allocation
+    - Forward traffic
+    - _Requirements: 1.3_
+  - [x] 12.3 Test TLS/TURNS
+    - Verify TLS connections
+    - _Requirements: 3.4_
+  - [x] 12.4 Test authentication
+    - Static auth secret
+    - Credential validation
+    - _Requirements: 4.1, 4.2_
+  - [x] 12.5 Test resource limits
+    - Bandwidth limits
+    - Quota limits
+    - _Requirements: 7.1, 7.2, 7.3_
+  - [x] 12.6 Test with ZRC client
+    - End-to-end connection
+    - NAT traversal verification
+    - _Requirements: 8.4_
+
+- [x] 13. Checkpoint - Verify coturn deployment
+  - Ensure coturn accepts connections
+  - Verify TURN allocation works
+  - Test with ZRC client
+  - Ask the user if questions arise
+
+## Notes
+
+- coturn is an external dependency (not a Rust crate)
+- Focus on deployment configuration and documentation
+- Support both development (self-signed certs) and production (Let's Encrypt) setups
+- Ensure compatibility with ZRC WebRTC clients
+- Security is critical - never expose plaintext credentials

@@ -1,0 +1,70 @@
+[package]
+name = "zrc-updater"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+description = "Secure automatic update system for ZRC: manifest verification, artifact download, and platform-specific installation"
+publish = false
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+async-trait = "0.1"
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util"] }
+tracing = "0.1"
+bytes = "1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Cryptography - Ed25519 for manifest signatures
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+
+# Version handling
+semver = { version = "1.0", features = ["serde"] }
+
+# HTTP client for downloads
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "stream"] }
+futures-util = "0.3"
+
+# Time handling
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+
+# Hex encoding for hashes
+hex = "0.4"
+
+# Constant-time comparison for security
+subtle = "2.5"
+
+# Internal dependencies
+zrc-core = { path = "../zrc-core" }
+
+# Platform-specific dependencies
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_System_Services",
+  "Win32_Security_Cryptography",
+  "Win32_Security_WinTrust",
+  "Win32_System_Registry",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# macOS uses command-line tools (codesign) for verification
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux uses systemd for service management
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+proptest = "1.4"
+tempfile = "3.10"
+rand_core = "0.6"
+
+[features]
+default = []

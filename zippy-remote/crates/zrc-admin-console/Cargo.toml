@@ -1,0 +1,46 @@
+[package]
+name = "zrc-admin-console"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web Framework
+axum = { version = "0.7", features = ["macros", "ws"] }
+tokio = { version = "1.37", features = ["full"] }
+tower = { version = "0.4", features = ["limit", "buffer"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs", "timeout", "limit"] }
+utoipa = { version = "4.2", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "6.0", features = ["axum"] }
+
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros", "uuid", "chrono", "migrate"] }
+
+# Authentication
+argon2 = "0.5"
+totp-rs = { version = "5.5", features = ["qr", "serde_support", "gen_secret"] }
+jsonwebtoken = "9.3"
+rand = "0.8"
+
+# Utilities
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1.0"
+anyhow = "1.0"
+uuid = { version = "1.8", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+directories = "5.0"
+
+# Workspace Members
+zrc-core = { path = "../zrc-core" }
+zrc-proto = { path = "../zrc-proto/proto" }
+base64 = "0.22.1"
+rust-embed = "8.9.0"
+mime_guess = "2.0.5"
+dotenvy = "0.15.7"
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+

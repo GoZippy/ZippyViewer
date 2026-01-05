@@ -1,0 +1,25 @@
+# Environment variables (contains secrets)
+.env
+
+# TLS certificates (contains private keys)
+certs/*.pem
+certs/*.key
+!certs/.gitkeep
+
+# Logs
+logs/*.log
+logs/*.log.*
+!logs/.gitkeep
+
+# Generated configuration
+turnserver.conf
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

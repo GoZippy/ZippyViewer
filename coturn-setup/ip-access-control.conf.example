@@ -1,0 +1,41 @@
+# IP Access Control Configuration for coturn
+# Add these lines to turnserver.conf to enable IP-based access control
+
+# ============================================================================
+# IP Allowlist (whitelist)
+# ============================================================================
+# Only allow connections from these IP addresses/ranges
+# Example: allowed-peer-ip=192.168.1.0/24
+# Example: allowed-peer-ip=10.0.0.1
+# allowed-peer-ip=192.168.1.0/24
+# allowed-peer-ip=10.0.0.0/8
+
+# ============================================================================
+# IP Blocklist (blacklist)
+# ============================================================================
+# Deny connections from these IP addresses/ranges
+# Example: denied-peer-ip=192.168.1.100
+# Example: denied-peer-ip=10.0.0.0/24
+# denied-peer-ip=192.168.1.100
+
+# ============================================================================
+# Local Network Configuration
+# ============================================================================
+# Allow local network peers (for development/testing)
+# WARNING: Only enable in trusted environments
+# allow-local-network
+
+# ============================================================================
+# Rate Limiting
+# ============================================================================
+# Limit connection rate per IP
+# Example: max-connections-per-ip=10
+# max-connections-per-ip=10
+
+# ============================================================================
+# Notes
+# ============================================================================
+# 1. Copy relevant lines to turnserver.conf
+# 2. Restart coturn after making changes
+# 3. Test connectivity after applying restrictions
+# 4. Monitor logs for blocked connections

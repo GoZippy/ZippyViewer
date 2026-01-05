@@ -1,0 +1,27 @@
+[Unit]
+Description=ZRC Directory Node
+After=network.target
+
+[Service]
+Type=simple
+User=zrc
+Group=zrc
+WorkingDirectory=/opt/zrc-dirnode
+ExecStart=/opt/zrc-dirnode/zrc-dirnode
+Environment="ZRC_DIRNODE_CONFIG=/etc/zrc-dirnode/config.toml"
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/zrc-dirnode
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=200M
+
+[Install]
+WantedBy=multi-user.target

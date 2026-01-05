@@ -1,0 +1,906 @@
+// crates/zrc-proto/proto/zrc_v1.proto
+syntax = "proto3";
+package zrc.v1;
+
+option go_package = "zrc/v1;zrcv1"; // harmless for tooling; you're using Rust/prost
+// Rust: prost will map this to zrc::v1
+
+// -----------------------------
+// Common primitives
+// -----------------------------
+
+enum KeyTypeV1 {
+  KEY_TYPE_V1_UNSPECIFIED = 0;
+  KEY_TYPE_V1_ED25519     = 1;
+  KEY_TYPE_V1_X25519      = 2;
+  // Future:
+  KEY_TYPE_V1_DILITHIUM   = 10;
+  KEY_TYPE_V1_KYBER       = 11;
+}
+
+enum SigTypeV1 {
+  SIG_TYPE_V1_UNSPECIFIED = 0;
+  SIG_TYPE_V1_ED25519     = 1;
+  // Future: SIG_TYPE_V1_DILITHIUM = 10;
+}
+
+enum KexSuiteV1 {
+  KEX_SUITE_V1_UNSPECIFIED          = 0;
+  KEX_SUITE_V1_X25519               = 1;
+  // Future hybrid:
+  KEX_SUITE_V1_X25519_KYBER768_HYBRID = 10;
+}
+
+enum CipherSuiteV1 {
+  CIPHER_SUITE_V1_UNSPECIFIED = 0;
+  // If you implement HPKE:
+  CIPHER_SUITE_V1_HPKE_X25519_HKDF_SHA256_AESGCM128 = 1;
+  CIPHER_SUITE_V1_HPKE_X25519_HKDF_SHA256_CHACHA20POLY1305 = 2;
+  // If you implement Noise instead, keep envelope but interpret fields differently.
+}
+
+message PublicKeyV1 {
+  KeyTypeV1 key_type = 1;
+  bytes key_bytes = 2; // raw bytes (e.g., 32 bytes for Ed25519/X25519)
+}
+
+message SignatureV1 {
+  SigTypeV1 sig_type = 1;
+  bytes sig_bytes = 2; // raw signature bytes
+}
+
+// Public key bundle containing both signing and key exchange keys
+// Requirements: 2.3, 2.4
+message PublicKeyBundleV1 {
+  bytes sign_pub = 1;  // Ed25519 signing public key, 32 bytes
+  bytes kex_pub = 2;   // X25519 key exchange public key, 32 bytes
+}
+
+// Identity messages - 32-byte identifiers derived from public signing keys
+// Requirements: 2.1, 2.2
+message DeviceIdV1 {
+  bytes id = 1;   // 32 bytes: SHA-256(device_sign_pub)
+}
+
+message OperatorIdV1 {
+  bytes id = 1;   // 32 bytes: SHA-256(operator_sign_pub)
+}
+
+// Alias for backward compatibility (deprecated, use OperatorIdV1)
+message UserIdV1 {
+  bytes id = 1;   // 32 bytes: SHA-256(user_sign_pub)
+}
+
+message SessionIdV1 {
+  bytes id = 1;   // 16 or 32 bytes random
+}
+
+message TicketIdV1 {
+  bytes id = 1;   // 16 or 32 bytes random
+}
+
+message TimestampV1 {
+  // unix seconds UTC
+  uint64 unix_seconds = 1;
+}
+
+message DurationV1 {
+  uint64 seconds = 1;
+}
+
+message PolicyHintV1 {
+  // Minimal set for MVP; expand later.
+  repeated PermissionV1 default_perms = 1;
+  bool require_consent = 2;
+}
+
+enum PermissionV1 {
+  PERMISSION_V1_UNSPECIFIED = 0;
+  PERMISSION_V1_VIEW        = 1;
+  PERMISSION_V1_CONTROL     = 2;
+  PERMISSION_V1_CLIPBOARD   = 3;
+  PERMISSION_V1_FILES       = 4;
+  PERMISSION_V1_AUDIO       = 5;
+  PERMISSION_V1_RECORDING   = 6;
+}
+
+// Permissions as bitflags for bitmask operations
+// Requirements: 8.2
+// Use power-of-2 values for bitwise OR combinations
+enum PermissionsV1 {
+  PERMISSIONS_V1_NONE = 0;                    // No permissions
+  PERMISSIONS_V1_VIEW = 1;                    // View screen (0x01)
+  PERMISSIONS_V1_CONTROL = 2;                 // Control input (0x02)
+  PERMISSIONS_V1_CLIPBOARD = 4;               // Clipboard access (0x04)
+  PERMISSIONS_V1_FILE_TRANSFER = 8;           // File transfer (0x08)
+  PERMISSIONS_V1_AUDIO = 16;                  // Audio streaming (0x10)
+  PERMISSIONS_V1_UNATTENDED = 32;             // Unattended access (0x20)
+}
+
+enum TransportV1 {
+  TRANSPORT_V1_UNSPECIFIED   = 0;
+  TRANSPORT_V1_MESH_MAILBOX  = 1; // preferred initiation
+  TRANSPORT_V1_RENDEZVOUS    = 2; // self-host or SaaS fallback
+  TRANSPORT_V1_DIRECT_IP     = 3; // LAN/VPN/port-forward
+  TRANSPORT_V1_RELAY         = 4; // TURN-like fallback
+}
+
+// -----------------------------
+// Message type enumeration for envelope routing
+// Requirements: 5.3
+// -----------------------------
+
+enum MsgTypeV1 {
+  MSG_TYPE_V1_UNSPECIFIED = 0;
+  MSG_TYPE_V1_PAIR_REQUEST = 1;
+  MSG_TYPE_V1_PAIR_RECEIPT = 2;
+  MSG_TYPE_V1_SESSION_INIT_REQUEST = 3;
+  MSG_TYPE_V1_SESSION_INIT_RESPONSE = 4;
+  MSG_TYPE_V1_CONTROL_MSG = 5;
+  MSG_TYPE_V1_ERROR = 6;
+  MSG_TYPE_V1_DIR_RECORD = 7;
+  MSG_TYPE_V1_DISCOVERY_TOKEN = 8;
+  // WebRTC signaling message types
+  MSG_TYPE_V1_SIGNALING_OFFER = 9;
+  MSG_TYPE_V1_SIGNALING_ANSWER = 10;
+  MSG_TYPE_V1_SIGNALING_ICE = 11;
+}
+
+// -----------------------------
+// Transport-agnostic encrypted envelope
+// Requirements: 5.1, 5.2, 5.3, 5.4
+// -----------------------------
+
+// Envelope header containing routing and metadata
+// Requirements: 5.3, 5.4
+// Fields are ordered deterministically for transcript hashing
+message EnvelopeHeaderV1 {
+  uint32 version = 1;             // Protocol version for negotiation
+  MsgTypeV1 msg_type = 2;         // Message type for routing
+  bytes sender_id = 3;            // 32 bytes: DeviceIdV1.id or OperatorIdV1.id
+  bytes recipient_id = 4;         // 32 bytes: target recipient identifier
+  uint64 timestamp = 5;           // Unix timestamp in seconds
+  bytes nonce = 6;                // 24 bytes: random nonce for ChaCha20Poly1305
+}
+
+// Key exchange parameters for envelope encryption
+message EnvelopeKexV1 {
+  CipherSuiteV1 cipher_suite = 1;
+  KexSuiteV1 kex_suite = 2;
+
+  // For HPKE-style sealing to one recipient:
+  bytes enc = 3; // HPKE encapsulated key (or Noise handshake payload)
+  // For multi-recipient envelopes (later):
+  // repeated bytes enc_per_recipient = 4;
+}
+
+// Signed and sealed envelope for encrypted payloads
+// Requirements: 5.1, 5.2
+message EnvelopeV1 {
+  EnvelopeHeaderV1 header = 1;            // Envelope metadata and routing
+  bytes sender_kex_pub = 2;               // 32 bytes: ephemeral X25519 public key
+  bytes encrypted_payload = 3;            // AEAD ciphertext (ChaCha20Poly1305)
+  bytes signature = 4;                    // Ed25519 signature over header+kex_pub+aad+ciphertext
+  bytes aad = 5;                          // Additional authenticated data
+}
+
+// Legacy envelope structure for backward compatibility
+message LegacyEnvelopeV1 {
+  EnvelopeHeaderV1 header = 1;
+  EnvelopeKexV1 kex = 2;
+  bytes aad = 3;         // canonical-encoded AAD (see transcript)
+  bytes ciphertext = 4;  // AEAD ciphertext
+
+  // Signature over (hash(header||kex||aad||ciphertext))
+  SignatureV1 sender_sig = 5;
+}
+
+// -----------------------------
+// Transport hints for connection establishment
+// -----------------------------
+
+// Relay server authorization token
+// Requirements: 7.2
+message RelayTokenV1 {
+  bytes relay_id = 1;         // Relay server identifier
+  bytes allocation_id = 2;    // Allocation identifier
+  uint64 expires_at = 3;      // Unix timestamp
+  uint32 bandwidth_limit = 4; // Bandwidth limit in bytes/sec
+  bytes signature = 5;        // Relay server signature
+}
+
+// Transport hints for connection establishment
+// Requirements: 3.3, 7.5, 7.6
+message EndpointHintsV1 {
+  repeated string direct_addrs = 1;       // Direct IP:port addresses
+  repeated RelayTokenV1 relay_tokens = 2; // Relay server tokens
+  repeated string rendezvous_urls = 3;    // Rendezvous server URLs
+  repeated string mesh_hints = 4;         // Mesh network hints
+}
+
+// -----------------------------
+// Invites & pairing
+// -----------------------------
+
+// Invitation for pairing - sent out-of-band (QR code, link, etc.)
+// Requirements: 3.1, 3.2, 3.3
+message InviteV1 {
+  bytes device_id = 1;                    // 32 bytes: device identifier
+  bytes device_sign_pub = 2;              // 32 bytes: Ed25519 signing public key
+  bytes invite_secret_hash = 3;           // 32 bytes: SHA256(invite_secret)
+  uint64 expires_at = 4;                  // Unix timestamp
+  EndpointHintsV1 transport_hints = 5;    // How to reach the device
+}
+
+// Pairing request from operator to device
+// Requirements: 3.4, 3.5
+message PairRequestV1 {
+  bytes operator_id = 1;                  // 32 bytes: operator identifier
+  bytes operator_sign_pub = 2;            // 32 bytes: Ed25519 signing public key
+  bytes operator_kex_pub = 3;             // 32 bytes: X25519 key exchange public key
+  bytes invite_proof = 4;                 // HMAC(invite_secret, transcript)
+  uint32 requested_permissions = 5;       // Bitmask of PermissionsV1
+  bytes nonce = 6;                        // 32 bytes: replay protection
+  uint64 timestamp = 7;                   // Unix timestamp: replay protection
+}
+
+// Legacy: Canonical fields used for invite_proof computation (documentation only)
+message PairRequestProofInputV1 {
+  // Not transmitted; documented for implementation.
+  // operator_id || operator_sign_pub || operator_kex_pub || nonce || timestamp
+}
+
+// Pairing approval from device (intermediate step before receipt)
+message PairApproveV1 {
+  DeviceIdV1 device_id = 1;
+  OperatorIdV1 operator_id = 2;
+
+  // Host's view of granted permissions
+  repeated PermissionV1 granted_perms = 3;
+  bool require_consent_each_time = 4;
+
+  TimestampV1 approved_at = 5;
+
+  // Optional SAS to display/confirm
+  string sas_6digit = 6;
+}
+
+// Pairing receipt - proof of successful pairing, signed by device
+// Requirements: 3.6, 3.7
+message PairReceiptV1 {
+  bytes device_id = 1;                    // 32 bytes: device identifier
+  bytes operator_id = 2;                  // 32 bytes: operator identifier
+  uint32 permissions_granted = 3;         // Bitmask of granted PermissionsV1
+  uint64 paired_at = 4;                   // Unix timestamp
+  bytes session_binding = 5;              // Binding for future sessions
+  bytes device_signature = 6;             // Ed25519 signature over fields 1-5
+}
+
+// -----------------------------
+// Directory and Discovery Messages
+// Requirements: 7.1, 7.2, 7.3, 7.4
+// -----------------------------
+
+// Directory record for device presence publication
+// Requirements: 7.1, 7.2
+// Signature covers canonical transcript of all fields except signature itself
+message DirRecordV1 {
+  bytes subject_id = 1;                       // 32 bytes: device or operator identifier
+  bytes device_sign_pub = 2;                  // 32 bytes: Ed25519 signing public key
+  EndpointHintsV1 endpoints = 3;              // How to reach the device
+  uint32 ttl_seconds = 4;                     // Time-to-live (max 86400 = 24 hours)
+  uint64 timestamp = 5;                       // Unix timestamp when record was created
+  bytes signature = 6;                        // Ed25519 signature over fields 1-5
+}
+
+// Discovery scope enumeration
+// Requirements: 7.4
+enum DiscoveryScopeV1 {
+  DISCOVERY_SCOPE_V1_UNSPECIFIED = 0;
+  DISCOVERY_SCOPE_V1_PAIRING_ONLY = 1;        // Only for pairing operations
+  DISCOVERY_SCOPE_V1_SESSION_ONLY = 2;        // Only for session establishment
+  DISCOVERY_SCOPE_V1_FULL = 3;                // Full discovery (pairing + session)
+}
+
+// Discovery token for time-bounded device discoverability
+// Requirements: 7.3, 7.4
+message DiscoveryTokenV1 {
+  bytes token_id = 1;                         // 16 bytes: unique token identifier
+  bytes subject_id = 2;                       // 32 bytes: device or operator identifier
+  uint64 expires_at = 3;                      // Unix timestamp: token expiration
+  DiscoveryScopeV1 scope = 4;                 // Discovery scope
+  bytes signature = 5;                        // Ed25519 signature over fields 1-4
+}
+
+// -----------------------------
+// Temporary discoverability ("searchable for a brief period")
+// -----------------------------
+
+message DiscoverAdvV1 {
+  // Ephemeral discovery key (not the real device identity)
+  PublicKeyV1 disc_sign_pub = 1; // ephemeral
+  TimestampV1 expires_at = 2;
+
+  // Contact hints (untrusted)
+  oneof contact {
+    MeshMailboxHintV1 mailbox = 3;
+    IceHintV1 ice = 4;
+    DirectIpHintV1 direct = 5;
+    RendezvousHintV1 rendezvous = 6;
+  }
+
+  bytes nonce = 7; // 16 bytes random
+
+  // Signature with disc_sign_priv over canonical hash of fields 1..7
+  SignatureV1 disc_sig = 8;
+}
+
+message MeshMailboxHintV1 {
+  bytes mailbox_id = 1; // opaque (mesh routing)
+}
+
+message RendezvousHintV1 {
+  string url = 1;
+  bytes device_lookup_key = 2; // opaque
+}
+
+message DirectIpHintV1 {
+  string host = 1; // "1.2.3.4" or "myhost"
+  uint32 port = 2;
+}
+
+message IceHintV1 {
+  // Minimal; you can expand later.
+  repeated string stun_urls = 1;
+  repeated string turn_urls = 2;
+  string ufrag = 3;
+  string pwd = 4;
+}
+
+// Lookup request for discoverability code.
+// Typically: key = H("discover"||CODE||time_bucket)
+message DiscoverLookupV1 {
+  bytes discover_key = 1;
+  TimestampV1 created_at = 2;
+}
+
+// -----------------------------
+// Session init + negotiation
+// -----------------------------
+
+// Transport preference enumeration for session negotiation
+// Requirements: 4.2
+enum TransportPreferenceV1 {
+  TRANSPORT_PREFERENCE_V1_AUTO = 0;           // Let system decide
+  TRANSPORT_PREFERENCE_V1_MESH_PREFERRED = 1; // Prefer mesh network
+  TRANSPORT_PREFERENCE_V1_DIRECT_PREFERRED = 2; // Prefer direct connection
+  TRANSPORT_PREFERENCE_V1_RELAY_ALLOWED = 3;  // Allow relay fallback
+  TRANSPORT_PREFERENCE_V1_RELAY_ONLY = 4;     // Force relay only
+}
+
+// Session initialization request from operator to device
+// Requirements: 4.1, 4.2
+message SessionInitRequestV1 {
+  bytes operator_id = 1;                      // 32 bytes: operator identifier
+  bytes device_id = 2;                        // 32 bytes: device identifier
+  bytes session_id = 3;                       // 32 bytes: random session identifier
+  uint32 requested_capabilities = 4;          // Bitmask of requested PermissionsV1
+  TransportPreferenceV1 transport_preference = 5; // Transport preference
+  bytes operator_signature = 6;               // Ed25519 signature over fields 1-5
+
+  // Optional: carry a valid ticket to allow unattended start
+  SessionTicketV1 ticket = 7;
+
+  // Legacy fields for backward compatibility
+  TimestampV1 created_at = 8;
+  bytes ticket_binding_nonce = 9;             // 16 bytes random for binding
+}
+
+// Certificate binding for identity-bound DTLS (security blocker)
+// Prevents signaling MITM attacks by binding DTLS cert to device identity
+message CertBindingV1 {
+  bytes dtls_fingerprint = 1;                 // 32 bytes: SHA-256 of DTLS certificate
+  bytes fingerprint_signature = 2;            // Ed25519 signature of fingerprint
+  bytes signer_pub = 3;                       // 32 bytes: signer's Ed25519 public key
+}
+
+// Transport negotiation parameters
+// Requirements: 7.3, 7.4
+message TransportNegotiationV1 {
+  TransportPreferenceV1 preferred_transport = 1;
+  QuicParamsV1 quic_params = 2;
+  repeated RelayTokenV1 relay_tokens = 3;
+  repeated IceCandidateV1 ice_candidates = 4;
+}
+
+// ICE candidate for WebRTC connectivity
+// Requirements: 7.4
+message IceCandidateV1 {
+  string candidate_type = 1;                  // host, srflx, prflx, relay
+  string protocol = 2;                        // udp, tcp
+  string address = 3;                         // IP address
+  uint32 port = 4;                            // Port number
+  uint32 priority = 5;                        // ICE priority
+  string foundation = 6;                      // ICE foundation
+}
+
+// Session initialization response from device to operator
+// Requirements: 4.3, 4.4
+message SessionInitResponseV1 {
+  bytes session_id = 1;                       // 32 bytes: session identifier
+  uint32 granted_capabilities = 2;            // Bitmask of granted PermissionsV1
+  TransportNegotiationV1 transport_params = 3; // Transport negotiation parameters
+  SessionTicketV1 issued_ticket = 4;          // Issued session ticket
+  bytes device_signature = 5;                 // Ed25519 signature over fields 1-4
+  CertBindingV1 cert_binding = 6;             // Identity-bound DTLS certificate
+
+  // Legacy fields for backward compatibility
+  bytes device_id = 7;                        // 32 bytes: device identifier
+  bytes operator_id = 8;                      // 32 bytes: operator identifier
+  bool requires_consent = 9;                  // Whether consent is required
+  repeated PermissionV1 permitted_perms = 10; // Permitted permissions list
+
+  // Negotiation options (legacy)
+  oneof negotiation {
+    WebRtcOfferV1 webrtc_offer = 11;
+    QuicParamsV1 legacy_quic_params = 12;
+  }
+
+  TimestampV1 created_at = 13;
+  bytes negotiation_commitment = 14;          // H(transcript_so_far)
+}
+
+message WebRtcOfferV1 {
+  bytes sdp = 1;
+}
+
+message WebRtcAnswerV1 {
+  bytes sdp = 1;
+}
+
+message IceCandidatesV1 {
+  repeated bytes candidate = 1; // raw ICE candidate strings as bytes (UTF-8)
+}
+
+// -----------------------------
+// WebRTC Signaling Messages (WebRTC-first architecture)
+// -----------------------------
+
+// Signaling message for WebRTC session establishment
+// Requirements: WebRTC signaling
+message SignalingMessageV1 {
+  bytes session_id = 1;                       // 32 bytes: session identifier
+  bytes sender_id = 2;                        // 32 bytes: sender identifier
+  bytes recipient_id = 3;                     // 32 bytes: recipient identifier
+  uint64 timestamp = 4;                       // Unix timestamp
+  uint64 sequence_number = 5;                 // Sequence number for ordering
+
+  oneof payload {
+    SignalingOfferV1 offer = 10;              // SDP offer with cert binding
+    SignalingAnswerV1 answer = 11;            // SDP answer with cert binding
+    SignalingIceCandidateV1 ice_candidate = 12; // ICE candidate
+    SignalingSessionEndV1 session_end = 13;  // Session termination
+  }
+}
+
+// SDP offer with identity-bound DTLS certificate
+message SignalingOfferV1 {
+  string sdp = 1;                             // SDP offer string
+  CertBindingV1 cert_binding = 2;             // Identity-bound DTLS certificate
+}
+
+// SDP answer with identity-bound DTLS certificate
+message SignalingAnswerV1 {
+  string sdp = 1;                             // SDP answer string
+  CertBindingV1 cert_binding = 2;             // Identity-bound DTLS certificate
+}
+
+// ICE candidate for trickle ICE
+message SignalingIceCandidateV1 {
+  string candidate = 1;                       // ICE candidate string
+  string sdp_mid = 2;                         // Media stream identification
+  uint32 sdp_mline_index = 3;                 // Media line index
+}
+
+// Session end notification
+message SignalingSessionEndV1 {
+  string reason = 1;                          // Reason for session termination
+  uint32 error_code = 2;                      // Optional error code
+}
+
+// ICE server configuration for NAT traversal
+// Requirements: NAT traversal config
+message IceConfigV1 {
+  repeated string stun_urls = 1;              // STUN server URLs (e.g., "stun:stun.example.com:3478")
+  repeated TurnServerV1 turn_servers = 2;     // TURN server configurations
+  IceTransportPolicyV1 transport_policy = 3;  // ICE transport policy
+  uint32 ice_candidate_pool_size = 4;         // Pre-allocated ICE candidate pool size
+}
+
+// TURN server configuration
+message TurnServerV1 {
+  string url = 1;                             // TURN server URL (e.g., "turn:turn.example.com:3478")
+  string username = 2;                        // TURN username
+  string credential = 3;                      // TURN credential/password
+  TurnCredentialTypeV1 credential_type = 4;  // Credential type
+}
+
+// TURN credential type enumeration
+enum TurnCredentialTypeV1 {
+  TURN_CREDENTIAL_TYPE_V1_UNSPECIFIED = 0;
+  TURN_CREDENTIAL_TYPE_V1_PASSWORD = 1;       // Static password
+  TURN_CREDENTIAL_TYPE_V1_OAUTH = 2;          // OAuth token
+}
+
+// ICE transport policy enumeration
+enum IceTransportPolicyV1 {
+  ICE_TRANSPORT_POLICY_V1_UNSPECIFIED = 0;
+  ICE_TRANSPORT_POLICY_V1_ALL = 1;            // Use all available candidates
+  ICE_TRANSPORT_POLICY_V1_RELAY = 2;          // Only use relay candidates (TURN)
+}
+
+// QUIC transport parameters
+// Requirements: 7.1, 7.2
+message QuicParamsV1 {
+  // For QUIC direct/relay: host announces how to connect.
+  repeated DirectIpHintV1 endpoints = 1;
+  // Optional relay token if using your relay service.
+  bytes relay_token = 2;
+  // Optional ALPN
+  string alpn = 3;
+  // Pinned self-signed cert DER for QUIC server
+  bytes server_cert_der = 4;
+}
+
+// -----------------------------
+// Session ticket (capability token) - signed by device
+// -----------------------------
+
+// Session ticket (capability token) - signed by device
+// Requirements: 4.5, 4.6
+message SessionTicketV1 {
+  bytes ticket_id = 1;                        // 16 bytes: unique ticket identifier
+  bytes session_id = 2;                       // 32 bytes: session identifier
+  bytes operator_id = 3;                      // 32 bytes: operator identifier
+  bytes device_id = 4;                        // 32 bytes: device identifier
+  uint32 permissions = 5;                     // Bitmask of granted PermissionsV1
+  uint64 expires_at = 6;                      // Unix timestamp: ticket expiration
+  bytes session_binding = 7;                  // H(session_id || operator_id || device_id || nonce)
+  bytes device_signature = 8;                 // Ed25519 signature over fields 1-7
+
+  // Extended fields for additional context
+  PublicKeyV1 device_sign_pub = 9;            // Device signing public key
+  PublicKeyV1 operator_sign_pub = 10;         // Operator signing public key
+  repeated PermissionV1 perms_list = 11;      // Permissions as list (legacy)
+  TimestampV1 issued_at = 12;                 // When ticket was issued
+  repeated TransportV1 allowed_transports = 13; // Allowed transport types
+  bool require_consent = 14;                  // Whether consent is required
+}
+
+// -----------------------------
+// Revocation & audit
+// -----------------------------
+
+message RevokeV1 {
+  DeviceIdV1 device_id = 1;
+  UserIdV1 operator_id = 2;
+  bytes pairing_id = 3;
+
+  TimestampV1 effective_at = 4;
+
+  enum ReasonV1 {
+    REASON_V1_UNSPECIFIED = 0;
+    REASON_V1_LOST_DEVICE = 1;
+    REASON_V1_COMPROMISED = 2;
+    REASON_V1_USER_REQUEST = 3;
+    REASON_V1_POLICY_CHANGE = 4;
+  }
+  ReasonV1 reason = 5;
+
+  // Signed by issuer (device or account authority)
+  PublicKeyV1 issuer_sign_pub = 6;
+  SignatureV1 issuer_sig = 7;
+}
+
+message AuditReceiptV1 {
+  SessionIdV1 session_id = 1;
+  TicketIdV1 ticket_id = 2;
+
+  DeviceIdV1 device_id = 3;
+  UserIdV1 operator_id = 4;
+
+  TimestampV1 started_at = 5;
+  TimestampV1 ended_at = 6;
+
+  repeated PermissionV1 perms_used = 7;
+  TransportV1 transport_used = 8;
+
+  // Hashes only (no content logging)
+  bytes transcript_hash = 9;
+  bytes stats_hash = 10; // optional
+
+  // Signed by both sides if possible
+  SignatureV1 device_sig = 11;
+  SignatureV1 operator_sig = 12;
+}
+
+// -----------------------------
+// Control messages over QUIC (post-handshake encrypted)
+// Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6
+// -----------------------------
+
+message ControlTicketV1 {
+  // Plaintext over pinned QUIC TLS only (first control frame after hello)
+  SessionIdV1 session_id = 1;
+  DeviceIdV1 device_id = 2;
+  UserIdV1 operator_id = 3;
+  bytes ticket_binding_nonce = 4; // 16 bytes
+  SessionTicketV1 ticket = 5;
+}
+
+// Control message type enumeration
+// Requirements: 6.1
+enum ControlMsgTypeV1 {
+  CONTROL_MSG_TYPE_V1_UNSPECIFIED = 0;
+  CONTROL_MSG_TYPE_V1_INPUT = 1;              // Input event (mouse, keyboard)
+  CONTROL_MSG_TYPE_V1_CLIPBOARD = 2;          // Clipboard operation
+  CONTROL_MSG_TYPE_V1_FRAME_META = 3;         // Frame metadata
+  CONTROL_MSG_TYPE_V1_FILE_CONTROL = 4;       // File transfer control
+  CONTROL_MSG_TYPE_V1_SESSION_CONTROL = 5;    // Session control
+  CONTROL_MSG_TYPE_V1_PING = 6;               // Ping for latency measurement
+  CONTROL_MSG_TYPE_V1_PONG = 7;               // Pong response
+}
+
+// Main control message container
+// Requirements: 6.1, 6.2
+message ControlMsgV1 {
+  ControlMsgTypeV1 msg_type = 1;              // Message type for routing
+  uint64 sequence_number = 2;                 // Monotonically increasing sequence number
+  uint64 timestamp = 3;                       // Unix timestamp in microseconds
+
+  oneof payload {
+    InputEventV1 input = 10;                  // Input events (mouse, keyboard)
+    ClipboardMsgV1 clipboard = 11;            // Clipboard operations
+    FrameMetadataV1 frame_meta = 12;          // Frame metadata
+    FileTransferControlV1 file_control = 13;  // File transfer control
+    SessionControlV1 session_control = 14;    // Session control
+    PingV1 ping = 15;                         // Ping for latency
+    PongV1 pong = 16;                         // Pong response
+  }
+}
+
+// Ping message for latency measurement
+message PingV1 { 
+  uint64 t = 1;                               // Timestamp when ping was sent
+}
+
+// Pong message response
+message PongV1 { 
+  uint64 t = 1;                               // Original ping timestamp
+}
+
+// Input event type enumeration
+// Requirements: 6.3
+enum InputEventTypeV1 {
+  INPUT_EVENT_TYPE_V1_UNSPECIFIED = 0;
+  INPUT_EVENT_TYPE_V1_MOUSE_MOVE = 1;         // Mouse movement
+  INPUT_EVENT_TYPE_V1_MOUSE_DOWN = 2;         // Mouse button pressed
+  INPUT_EVENT_TYPE_V1_MOUSE_UP = 3;           // Mouse button released
+  INPUT_EVENT_TYPE_V1_KEY_DOWN = 4;           // Key pressed
+  INPUT_EVENT_TYPE_V1_KEY_UP = 5;             // Key released
+  INPUT_EVENT_TYPE_V1_KEY_CHAR = 6;           // Character input
+  INPUT_EVENT_TYPE_V1_SCROLL = 7;             // Scroll event
+}
+
+// Input event message containing mouse, keyboard, and text input
+// Requirements: 6.3, 6.4
+message InputEventV1 {
+  InputEventTypeV1 event_type = 1;            // Type of input event
+  int32 mouse_x = 2;                          // Mouse X coordinate (absolute pixels)
+  int32 mouse_y = 3;                          // Mouse Y coordinate (absolute pixels)
+  uint32 button = 4;                          // Mouse button (1=left, 2=right, 3=middle, 4=x1, 5=x2)
+  uint32 key_code = 5;                        // Virtual key code (platform-specific)
+  uint32 modifiers = 6;                       // Modifier keys bitmask (see InputModifiersV1)
+  string text = 7;                            // Text input for KEY_CHAR events
+  int32 scroll_delta_x = 8;                   // Horizontal scroll delta
+  int32 scroll_delta_y = 9;                   // Vertical scroll delta
+}
+
+// Input modifier keys bitmask
+// Requirements: 6.3
+enum InputModifiersV1 {
+  INPUT_MODIFIERS_V1_NONE = 0;
+  INPUT_MODIFIERS_V1_SHIFT = 1;               // Shift key
+  INPUT_MODIFIERS_V1_CTRL = 2;                // Control key
+  INPUT_MODIFIERS_V1_ALT = 4;                 // Alt key
+  INPUT_MODIFIERS_V1_META = 8;                // Meta/Windows/Command key
+  INPUT_MODIFIERS_V1_CAPS_LOCK = 16;          // Caps Lock active
+  INPUT_MODIFIERS_V1_NUM_LOCK = 32;           // Num Lock active
+}
+
+// Clipboard direction enumeration
+// Requirements: 6.5
+enum ClipboardDirectionV1 {
+  CLIPBOARD_DIRECTION_V1_UNSPECIFIED = 0;
+  CLIPBOARD_DIRECTION_V1_TO_DEVICE = 1;       // Operator -> Device (paste)
+  CLIPBOARD_DIRECTION_V1_FROM_DEVICE = 2;     // Device -> Operator (copy)
+  CLIPBOARD_DIRECTION_V1_REQUEST = 3;         // Request clipboard contents
+}
+
+// Clipboard format enumeration
+// Requirements: 6.5
+enum ClipboardFormatV1 {
+  CLIPBOARD_FORMAT_V1_UNSPECIFIED = 0;
+  CLIPBOARD_FORMAT_V1_TEXT = 1;               // Plain text (UTF-8)
+  CLIPBOARD_FORMAT_V1_HTML = 2;               // HTML formatted text
+  CLIPBOARD_FORMAT_V1_RTF = 3;                // Rich Text Format
+  CLIPBOARD_FORMAT_V1_IMAGE_PNG = 4;          // PNG image
+  CLIPBOARD_FORMAT_V1_IMAGE_BMP = 5;          // BMP image
+  CLIPBOARD_FORMAT_V1_FILES = 6;              // File list (paths)
+}
+
+// Clipboard message for clipboard synchronization
+// Requirements: 6.5
+message ClipboardMsgV1 {
+  ClipboardDirectionV1 direction = 1;         // Direction of clipboard operation
+  ClipboardFormatV1 format = 2;               // Format of clipboard data
+  bytes data = 3;                             // Clipboard data (format-dependent)
+  uint64 sequence_id = 4;                     // Sequence ID for ordering
+}
+
+// Legacy clipboard messages for backward compatibility
+message ClipboardSetV1 { bytes data = 1; }
+message ClipboardGetV1 {}
+message ClipboardDataV1 { bytes data = 1; }
+
+// Frame format enumeration
+// Requirements: 6.6
+enum FrameFormatV1 {
+  FRAME_FORMAT_V1_UNSPECIFIED = 0;
+  FRAME_FORMAT_V1_RAW_BGRA = 1;               // Raw BGRA pixels
+  FRAME_FORMAT_V1_RAW_RGBA = 2;               // Raw RGBA pixels
+  FRAME_FORMAT_V1_JPEG = 3;                   // JPEG compressed
+  FRAME_FORMAT_V1_PNG = 4;                    // PNG compressed
+  FRAME_FORMAT_V1_H264 = 5;                   // H.264 encoded
+  FRAME_FORMAT_V1_VP8 = 6;                    // VP8 encoded
+  FRAME_FORMAT_V1_VP9 = 7;                    // VP9 encoded
+  FRAME_FORMAT_V1_AV1 = 8;                    // AV1 encoded
+}
+
+// Frame flags bitmask
+// Requirements: 6.6
+enum FrameFlagsV1 {
+  FRAME_FLAGS_V1_NONE = 0;
+  FRAME_FLAGS_V1_KEYFRAME = 1;                // This is a keyframe
+  FRAME_FLAGS_V1_CURSOR_VISIBLE = 2;          // Cursor is visible in frame
+  FRAME_FLAGS_V1_CURSOR_EMBEDDED = 4;         // Cursor is embedded in frame data
+  FRAME_FLAGS_V1_PARTIAL = 8;                 // Partial frame update (dirty rect)
+}
+
+// Frame metadata message
+// Requirements: 6.6
+message FrameMetadataV1 {
+  uint64 frame_id = 1;                        // Unique frame identifier
+  uint64 timestamp = 2;                       // Capture timestamp in microseconds
+  uint32 monitor_id = 3;                      // Monitor/display identifier
+  uint32 width = 4;                           // Frame width in pixels
+  uint32 height = 5;                          // Frame height in pixels
+  FrameFormatV1 format = 6;                   // Frame encoding format
+  uint32 flags = 7;                           // Bitmask of FrameFlagsV1
+  
+  // Optional dirty rectangle for partial updates
+  int32 dirty_x = 8;                          // Dirty rect X offset
+  int32 dirty_y = 9;                          // Dirty rect Y offset
+  uint32 dirty_width = 10;                    // Dirty rect width
+  uint32 dirty_height = 11;                   // Dirty rect height
+  
+  // Cursor information (if not embedded)
+  int32 cursor_x = 12;                        // Cursor X position
+  int32 cursor_y = 13;                        // Cursor Y position
+  uint32 cursor_shape_id = 14;                // Cursor shape identifier
+}
+
+// Video frame with data
+// Requirements: 6.6
+message VideoFrameV1 {
+  FrameMetadataV1 header = 1;                 // Frame metadata
+  bytes data = 2;                             // Encoded frame data or raw pixels
+}
+
+// File transfer action enumeration
+// Requirements: 9.4
+enum FileActionV1 {
+  FILE_ACTION_V1_UNSPECIFIED = 0;
+  FILE_ACTION_V1_START = 1;                   // Start file transfer
+  FILE_ACTION_V1_PAUSE = 2;                   // Pause file transfer
+  FILE_ACTION_V1_RESUME = 3;                  // Resume file transfer
+  FILE_ACTION_V1_CANCEL = 4;                  // Cancel file transfer
+  FILE_ACTION_V1_COMPLETE = 5;                // File transfer complete
+  FILE_ACTION_V1_DATA = 6;                    // File data chunk
+}
+
+// File transfer control message
+// Requirements: 6.2
+message FileTransferControlV1 {
+  bytes transfer_id = 1;                      // 16 bytes: unique transfer identifier
+  FileActionV1 action = 2;                    // Transfer action
+  uint64 progress = 3;                        // Bytes transferred so far (or offset)
+  string error_message = 4;                   // Error message if action failed
+  bytes data = 5;                             // Data chunk for DATA action
+}
+
+// Session control action enumeration
+enum SessionControlActionV1 {
+  SESSION_CONTROL_ACTION_V1_UNSPECIFIED = 0;
+  SESSION_CONTROL_ACTION_V1_PAUSE = 1;        // Pause session
+  SESSION_CONTROL_ACTION_V1_RESUME = 2;       // Resume session
+  SESSION_CONTROL_ACTION_V1_END = 3;          // End session
+  SESSION_CONTROL_ACTION_V1_QUALITY_CHANGE = 4; // Change quality settings
+  SESSION_CONTROL_ACTION_V1_PERMISSION_REQUEST = 5; // Request additional permissions
+}
+
+// Session control message
+// Requirements: 6.2
+message SessionControlV1 {
+  SessionControlActionV1 action = 1;          // Session control action
+  uint32 requested_permissions = 2;           // For permission requests (bitmask)
+  uint32 quality_level = 3;                   // Quality level (0-100)
+  string reason = 4;                          // Reason for action (e.g., end reason)
+}
+
+// Legacy input event messages for backward compatibility
+message MouseMoveV1 {
+  // Absolute pixel coords in the captured frame space
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message MouseButtonV1 {
+  // 1=left 2=right 3=middle
+  uint32 button = 1;
+  bool down = 2;
+}
+
+message KeyV1 {
+  // MVP: use Windows virtual-key codes (VK_*) when controlling a Windows host.
+  uint32 keycode = 1;
+  bool down = 2;
+}
+
+message TextV1 {
+  string text = 1;
+}
+
+// -----------------------------
+// Error messages
+// Requirements: 8.1, 8.2, 8.3, 8.4
+// -----------------------------
+
+// Error code enumeration for error responses
+// Requirements: 8.3, 8.4
+enum ErrorCodeV1 {
+  ERROR_CODE_V1_UNSPECIFIED = 0;              // Unknown/unspecified error
+  ERROR_CODE_V1_AUTH_FAILED = 1;              // Authentication failed
+  ERROR_CODE_V1_PERMISSION_DENIED = 2;        // Permission denied
+  ERROR_CODE_V1_TICKET_EXPIRED = 3;           // Session ticket expired
+  ERROR_CODE_V1_RATE_LIMITED = 4;             // Rate limit exceeded
+  ERROR_CODE_V1_TRANSPORT_FAILED = 5;         // Transport connection failed
+  ERROR_CODE_V1_INTERNAL_ERROR = 6;           // Internal server error
+  ERROR_CODE_V1_INVALID_MESSAGE = 7;          // Invalid message format
+  ERROR_CODE_V1_SESSION_NOT_FOUND = 8;        // Session not found
+  ERROR_CODE_V1_DEVICE_OFFLINE = 9;           // Target device is offline
+  ERROR_CODE_V1_PAIRING_REQUIRED = 10;        // Pairing required before session
+  ERROR_CODE_V1_CONSENT_REQUIRED = 11;        // User consent required
+  ERROR_CODE_V1_TIMEOUT = 12;                 // Operation timed out
+  ERROR_CODE_V1_CANCELLED = 13;               // Operation cancelled
+}
+
+// Error message for communicating failures
+// Requirements: 9.1, 9.2
+// Contains sufficient detail for debugging without exposing sensitive data
+message ErrorV1 {
+  ErrorCodeV1 error_code = 1;                 // Error code from ErrorCodeV1 enum
+  string error_message = 2;                   // Human-readable error description
+  map<string, string> details = 3;            // Additional key-value details for debugging
+  uint64 timestamp = 4;                       // Unix timestamp when error occurred
+}

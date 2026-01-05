@@ -1,0 +1,54 @@
+[package]
+name = "zrc-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+description = "Core business logic for ZRC: state machines, policy, dispatch, and transport negotiation"
+publish = false
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+thiserror = "1.0"
+async-trait = "0.1"
+bytes = "1"
+prost = "0.13"
+tokio = { version = "1.37", features = ["macros", "rt-multi-thread", "sync", "time", "fs", "io-util"] }
+tracing = "0.1"
+
+# Cryptography
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+x25519-dalek = "2"
+rand_core = "0.6"
+getrandom = "0.2"
+
+# Time handling for policy and rate limiting
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+# Hex encoding for logging
+hex = "0.4"
+
+# Internal dependencies
+zrc-proto = { path = "../zrc-proto/proto" }
+zrc-crypto = { path = "../zrc-crypto" }
+
+# Optional: HTTP mailbox transport
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2"], optional = true }
+
+# Optional: QUIC transport
+quinn = { version = "0.11", optional = true }
+rcgen = { version = "0.13", optional = true }
+rustls = { version = "0.23", default-features = false, features = ["std"], optional = true }
+
+# Optional: SQLite storage
+rusqlite = { version = "0.29.0", features = ["bundled"], optional = true }
+
+[features]
+default = ["http-mailbox", "quic"]
+http-mailbox = ["dep:reqwest"]
+quic = ["dep:quinn", "dep:rcgen", "dep:rustls"]
+sqlite = ["dep:rusqlite"]
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+proptest = "1.4"

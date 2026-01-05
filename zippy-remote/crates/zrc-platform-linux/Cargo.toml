@@ -1,0 +1,45 @@
+[package]
+name = "zrc-platform-linux"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync", "time"] }
+bytes = "1"
+async-trait = "0.1"
+zeroize = { version = "1.7", features = ["zeroize_derive"] }
+
+# X11 dependencies
+x11rb = { version = "0.13", features = ["randr", "shm", "xtest"] }
+
+# Wayland/PipeWire dependencies (optional - requires Wayland session)
+# Note: Uncomment when dependencies are available
+# ashpd = { version = "0.8", optional = true, features = ["screencast"] }
+
+# Input injection (optional - requires /dev/uinput access)
+# Note: uinput crate may not be available, using placeholder
+# uinput = { version = "0.1", optional = true }
+
+# Secret storage (optional - requires Secret Service)
+# secret-service = { version = "2.0", optional = true }
+
+# Systemd integration (optional - requires systemd)
+# libsystemd = { version = "0.7", optional = true }
+
+# Core dependency for platform trait
+zrc-core = { path = "../zrc-core" }
+
+[features]
+default = []
+# pipewire = ["dep:ashpd"]  # Uncomment when ashpd is available
+# uinput = ["dep:uinput"]  # Uncomment when uinput crate is available
+# secret-service = ["dep:secret-service"]  # Uncomment when secret-service is available
+# systemd = ["dep:libsystemd"]  # Uncomment when libsystemd is available
+
+[dev-dependencies]
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros"] }
+proptest = "1.4"

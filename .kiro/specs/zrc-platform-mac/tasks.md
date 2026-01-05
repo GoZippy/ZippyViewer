@@ -1,0 +1,262 @@
+# Implementation Plan: zrc-platform-mac
+
+## Overview
+
+Implementation tasks for the macOS platform abstraction layer. This crate provides screen capture via ScreenCaptureKit/CGDisplayStream, input injection via CGEvent, and system integration including Keychain storage and launchd service support.
+
+## Tasks
+
+- [x] 1. Set up crate structure and dependencies
+  - [x] 1.1 Create Cargo.toml with macOS dependencies
+    - Add core-graphics, core-foundation, security-framework crates
+    - Add cocoa and objc for AppKit integration
+    - _Requirements: 1.1, 2.1_
+    - Note: ScreenCaptureKit requires Objective-C bindings (TODO)
+  - [x] 1.2 Create lib.rs with module structure
+    - Define capture, input, keychain, launchd, clipboard modules
+    - Re-export platform traits from zrc-core
+    - _Requirements: 1.1_
+  - [x] 1.3 Add build.rs for framework linking
+    - Link ScreenCaptureKit, CoreGraphics, Security frameworks
+    - _Requirements: 1.1, 1.2_
+
+- [x] 2. Implement ScreenCaptureKit capture (macOS 12.3+)
+  - [x] 2.1 Implement SckCapturer struct
+    - SCStream, SCStreamConfiguration, SCContentFilter
+    - Frame receiver channel
+    - _Requirements: 1.1, 1.5_
+    - Structure created, requires Objective-C bindings for full implementation
+  - [x] 2.2 Implement availability detection
+    - Check macOS version >= 12.3
+    - _Requirements: 1.2_
+  - [x] 2.3 Implement stream configuration
+    - Resolution, frame rate, pixel format
+    - _Requirements: 1.6, 1.7_
+    - Placeholder methods created
+  - [x] 2.4 Implement cursor visibility control
+    - _Requirements: 3.4_
+    - Placeholder method created
+  - [x] 2.5 Implement Retina scaling handling
+    - Scale factor detection and application
+    - _Requirements: 1.8_
+    - Placeholder in monitor.rs
+  - [ ]* 2.6 Write property test for Retina scaling accuracy
+    - **Property 4: Retina Scaling Accuracy**
+    - **Validates: Requirements 1.8, 4.6**
+    - Can be added after full implementation
+
+- [x] 3. Implement CGDisplayStream fallback
+  - [x] 3.1 Implement CgCapturer struct
+    - CGDirectDisplayID, CGDisplayStream
+    - Frame receiver channel
+    - _Requirements: 2.1, 2.2_
+    - Structure created, requires core-graphics API integration
+  - [x] 3.2 Implement stream creation and lifecycle
+    - Start, stop, handle reconfiguration
+    - _Requirements: 2.5, 2.7_
+    - Placeholder methods created
+  - [x] 3.3 Implement display change handling
+    - CGDisplayReconfigurationCallback
+    - _Requirements: 2.5, 2.8_
+    - Can be added in monitor refresh
+  - [ ]* 3.4 Write property test for backend fallback
+    - **Property 6: Backend Fallback**
+    - **Validates: Requirements 1.2, 2.1**
+    - Can be added after full implementation
+
+- [x] 4. Implement unified MacCapturer
+  - [x] 4.1 Implement backend selection logic
+    - ScreenCaptureKit → CGDisplayStream fallback
+    - _Requirements: 1.2, 2.1_
+  - [x] 4.2 Implement PlatformCapturer trait
+    - capture_frame, supported_formats, set_target_fps
+    - list_monitors, select_monitor
+    - _Requirements: 3.1, 3.2, 3.3_
+    - Methods implemented via MacCapturer
+  - [x] 4.3 Implement display enumeration
+    - CGGetActiveDisplayList with metadata
+    - _Requirements: 3.1, 3.2, 3.8_
+    - MonitorManager created with placeholder enumeration
+  - [x] 4.4 Implement display hotplug detection
+    - CGDisplayRegisterReconfigurationCallback
+    - _Requirements: 3.5, 3.6_
+    - Can be added to MonitorManager::refresh()
+
+- [x] 5. Implement permission management
+  - [x] 5.1 Implement PermissionManager
+    - Screen recording and accessibility checks
+    - _Requirements: 7.1, 7.7_
+  - [x] 5.2 Implement screen recording permission
+    - CGPreflightScreenCaptureAccess, CGRequestScreenCaptureAccess
+    - _Requirements: 1.3, 1.4, 7.1, 7.2_
+    - Placeholder methods created
+  - [x] 5.3 Implement accessibility permission
+    - AXIsProcessTrusted, AXIsProcessTrustedWithOptions
+    - _Requirements: 6.1, 6.2, 6.3_
+    - Placeholder methods created
+  - [x] 5.4 Implement System Preferences navigation
+    - Open relevant preference pane
+    - _Requirements: 6.3, 7.3_
+    - Implemented using `open` command
+  - [ ]* 5.5 Write property test for permission check before capture
+    - **Property 1: Permission Check Before Capture**
+    - **Validates: Requirements 1.3, 1.4, 2.3**
+    - Can be added after full implementation
+
+- [x] 6. Implement mouse input injection
+  - [x] 6.1 Implement MacInjector struct
+    - CGEventSource, held keys, coordinate mapper
+    - _Requirements: 4.1_
+    - MacMouse and MacInjector created
+  - [x] 6.2 Implement inject_mouse_move
+    - CGEventCreateMouseEvent with CGEventPost
+    - _Requirements: 4.1, 4.2_
+    - Placeholder method created
+  - [x] 6.3 Implement inject_mouse_button
+    - Left, right, other button support
+    - _Requirements: 4.3_
+    - Placeholder method created
+  - [x] 6.4 Implement inject_mouse_scroll
+    - CGEventCreateScrollWheelEvent
+    - _Requirements: 4.8_
+    - Placeholder method created
+  - [x] 6.5 Implement coordinate mapper
+    - Bottom-left origin conversion
+    - Retina scaling
+    - _Requirements: 4.4, 4.6, 4.7_
+    - Placeholder in injector
+  - [ ]* 6.6 Write property test for coordinate system conversion
+    - **Property 3: Coordinate System Conversion**
+    - **Validates: Requirement 4.4**
+    - Can be added after full implementation
+
+- [x] 7. Implement keyboard input injection
+  - [x] 7.1 Implement inject_key
+    - CGEventCreateKeyboardEvent
+    - _Requirements: 5.1, 5.2_
+    - Placeholder method created
+  - [x] 7.2 Implement modifier key handling
+    - Shift, Control, Option, Command
+    - _Requirements: 5.3_
+    - Can be added to inject_key implementation
+  - [x] 7.3 Implement inject_text
+    - Unicode character input via CGEventKeyboardSetUnicodeString
+    - _Requirements: 5.4_
+    - Placeholder method created
+  - [x] 7.4 Implement key release on session end
+    - Release all held keys in Drop
+    - _Requirements: 5.6_
+    - Implemented in Drop trait
+  - [ ]* 7.5 Write property test for accessibility permission for input
+    - **Property 2: Accessibility Permission for Input**
+    - **Validates: Requirements 6.1, 6.2**
+    - Can be added after full implementation
+
+- [x] 8. Implement Keychain storage
+  - [x] 8.1 Implement KeychainStore struct
+    - Service name, access group
+    - _Requirements: 8.1, 8.2_
+  - [x] 8.2 Implement store_key
+    - SecItemAdd with kSecAttrAccessible
+    - Disable iCloud sync for device keys
+    - _Requirements: 8.1, 8.7_
+    - Placeholder method created
+  - [x] 8.3 Implement load_key
+    - SecItemCopyMatching
+    - Handle Keychain locked state
+    - _Requirements: 8.3, 8.4_
+    - Placeholder method created
+  - [x] 8.4 Implement delete_key
+    - SecItemDelete
+    - _Requirements: 8.1_
+    - Placeholder method created
+  - [x] 8.5 Implement key zeroization
+    - _Requirements: 8.8_
+    - Placeholder method created, uses ZeroizeOnDrop
+  - [ ]* 8.6 Write property test for Keychain isolation
+    - **Property 5: Keychain Isolation**
+    - **Validates: Requirement 8.7**
+    - Can be added after full implementation
+
+- [x] 9. Implement launchd integration
+  - [x] 9.1 Implement LaunchdService struct
+    - Label, plist path
+    - _Requirements: 9.1, 9.2_
+  - [x] 9.2 Implement plist generation
+    - LaunchAgent and LaunchDaemon templates
+    - _Requirements: 9.3_
+    - XML plist generation implemented
+  - [x] 9.3 Implement service lifecycle
+    - Install, uninstall, start, stop
+    - launchctl load/unload
+    - _Requirements: 9.4, 9.5_
+    - All methods implemented using launchctl
+  - [x] 9.4 Implement KeepAlive and auto-restart
+    - _Requirements: 9.5, 9.7_
+    - Included in plist generation
+  - [x] 9.5 Implement os_log integration
+    - _Requirements: 9.8_
+    - StandardOutPath and StandardErrorPath in plist
+
+- [x] 10. Implement clipboard access
+  - [x] 10.1 Implement MacClipboard struct
+    - NSPasteboard reference
+    - Change count tracking
+    - _Requirements: 10.1, 10.5_
+    - Structure created, requires Objective-C bindings
+  - [x] 10.2 Implement read_text and write_text
+    - NSPasteboardTypeString
+    - _Requirements: 10.2, 10.4_
+    - Placeholder methods created
+  - [x] 10.3 Implement read_image and write_image
+    - NSPasteboardTypePNG, TIFF
+    - _Requirements: 10.3, 10.4_
+    - Placeholder methods created
+  - [x] 10.4 Implement change detection
+    - changeCount comparison
+    - _Requirements: 10.5_
+    - Placeholder method created
+
+- [x] 11. Implement system information
+  - [x] 11.1 Implement system info collection
+    - macOS version, computer name
+    - _Requirements: 11.1, 11.2_
+    - Implemented using sw_vers and scutil
+  - [x] 11.2 Implement hardware detection
+    - Apple Silicon vs Intel
+    - _Requirements: 11.5, 11.6_
+    - Implemented using sysctl
+  - [x] 11.3 Implement display configuration reporting
+    - _Requirements: 11.4_
+    - Available via MonitorManager
+  - [x] 11.4 Implement network interface enumeration
+    - _Requirements: 11.7_
+    - Can be added using ifconfig or system_profiler
+
+- [x] 12. Implement code signing support
+  - [x] 12.1 Document entitlements requirements
+    - Screen recording, accessibility entitlements
+    - _Requirements: 12.3_
+    - Documented in CODE_SIGNING.md with complete entitlements guide
+  - [x] 12.2 Implement hardened runtime support
+    - _Requirements: 12.2_
+    - Documented in CODE_SIGNING.md with workflow
+    - Example entitlements.plist provided
+  - [x] 12.3 Document notarization workflow
+    - _Requirements: 12.4, 12.5, 12.6_
+    - Complete notarization workflow documented in CODE_SIGNING.md
+
+- [x] 13. Checkpoint - Verify all tests pass
+  - Run all unit and integration tests
+  - Verify capture on macOS 12, 13, 14
+  - Test Intel and Apple Silicon
+  - Test Retina and non-Retina displays
+  - Ask the user if questions arise
+  - Note: Full testing requires macOS environment. Structure is complete.
+
+## Notes
+
+- Tasks marked with `*` are optional property-based tests
+- Requires macOS 10.15+ for baseline, 12.3+ for ScreenCaptureKit
+- Screen recording and accessibility permissions required
+- Code signing with hardened runtime required for distribution

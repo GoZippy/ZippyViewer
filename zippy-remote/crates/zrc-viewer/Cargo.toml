@@ -1,0 +1,17 @@
+[package]
+name = "zrc-viewer"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0 OR MIT"
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+winit = "0.30"
+pixels = "0.13"
+tokio = { version = "1.37", features = ["rt-multi-thread", "macros", "sync"] }
+bytes = "1"
+
+zrc-proto = { path = "../zrc-proto/proto" }
+zrc-core = { path = "../zrc-core", features = ["quic"] }
+

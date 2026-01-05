@@ -1,0 +1,13 @@
+/var/log/coturn/*.log {
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0644 65534 65534
+    sharedscripts
+    postrotate
+        docker exec zrc-coturn kill -USR1 1 2>/dev/null || true
+    endscript
+}

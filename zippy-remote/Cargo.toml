@@ -1,0 +1,24 @@
+# Cargo.toml (repo root)
+[workspace]
+resolver = "2"
+members = [
+  "crates/zrc-proto/proto",
+  "crates/zrc-crypto",
+  "crates/zrc-core",
+  "crates/zrc-transport",
+  "crates/zrc-rendezvous",
+  "crates/zrc-relay",
+  "crates/zrc-dirnode",
+  "crates/zrc-demo",
+  "crates/zrc-platform-win",
+  "crates/zrc-platform-mac",
+  "crates/zrc-platform-linux",
+  "crates/zrc-platform-ios",
+  "crates/zrc-platform-android",
+  "crates/zrc-viewer",
+  "crates/zrc-agent",
+  "crates/zrc-controller",
+  "crates/zrc-desktop",
+  "crates/zrc-updater", "crates/zrc-admin-console",
+  "crates/zrc-security",
+]

@@ -1,7 +1,7 @@
 # ZRC (Zippy Remote Control)
 
-[![Build](https://github.com/yourusername/ZippyViewer/actions/workflows/build.yml/badge.svg)](https://github.com/yourusername/ZippyViewer/actions/workflows/build.yml)
-[![PR Validation](https://github.com/yourusername/ZippyViewer/actions/workflows/pr.yml/badge.svg)](https://github.com/yourusername/ZippyViewer/actions/workflows/pr.yml)
+[![Build](https://github.com/GoZippy/ZippyViewer/actions/workflows/build.yml/badge.svg)](https://github.com/GoZippy/ZippyViewer/actions/workflows/build.yml)
+[![PR Validation](https://github.com/GoZippy/ZippyViewer/actions/workflows/pr.yml/badge.svg)](https://github.com/GoZippy/ZippyViewer/actions/workflows/pr.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](LICENSE)
 
 An open-source, self-hostable remote desktop platform with privacy-first defaults and end-to-end encryption.
@@ -75,7 +75,7 @@ ZRC provides TeamViewer-class remote desktop functionality that you can fully se
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ZippyViewer.git
+git clone https://github.com/GoZippy/ZippyViewer.git
 cd ZippyViewer/zippy-remote
 
 # Build all cross-platform crates

@@ -75,8 +75,24 @@ coturn-setup/certs/*.key
 coturn-setup/logs/
 coturn-setup/.env
 
-# Kiro specs (optional - uncomment to exclude)
-# .kiro/
+# Kiro specs and development tracking
+.kiro/
+
+# Development status/completion files (keep locally, exclude from repo)
+**/COMPLETION_*.md
+**/ALL_TASKS_COMPLETED.md
+**/TASK_COMPLETION_*.md
+**/FINAL_COMPLETION_*.md
+**/FINAL_TASK_*.md
+**/FINAL_REVIEW.md
+**/FINAL_VALIDATION.md
+**/ARCHITECTURE_COMPLETION_REPORT.md
+
+# Initial development docs (keep locally, create proper docs for release)
+docs/ChatGPT*.md
+docs/EXTRACTION_INDEX.md
+docs/CHATGPT_EXTRACTION_SUMMARY.md
+docs/specs/
 
 # Temporary files
 *.tmp

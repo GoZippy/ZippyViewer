@@ -1,4 +1,4 @@
-use rust_embed::RustEmbed;
+use rust_embed::{Embed, RustEmbed};
 use axum::{
     response::{IntoResponse, Response},
     http::{header, StatusCode, Uri},

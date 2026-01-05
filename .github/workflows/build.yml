@@ -38,6 +38,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -68,6 +73,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -119,6 +129,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
+      
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -156,6 +171,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -210,6 +230,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "25.x"
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

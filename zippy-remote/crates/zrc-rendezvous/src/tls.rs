@@ -108,7 +108,7 @@ pub async fn setup_tls_reload_handler(_tls_config: TlsConfig) {
             let tls_config = _tls_config;
             tokio::spawn(async move {
                 loop {
-                    if let Ok(Some(_)) = sighup.recv().await {
+                    if sighup.recv().await.is_some() {
                         if let Err(e) = tls_config.reload().await {
                             error!("Failed to reload TLS certificate on SIGHUP: {}", e);
                         }

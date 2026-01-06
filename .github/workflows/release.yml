@@ -94,6 +94,17 @@ jobs:
           version: "25.x"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Build admin console frontend
+        working-directory: zippy-remote/crates/zrc-admin-console/web
+        run: |
+          npm ci
+          npm run build
+      
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -129,6 +140,17 @@ jobs:
         with:
           version: "25.x"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Build admin console frontend
+        working-directory: zippy-remote/crates/zrc-admin-console/web
+        run: |
+          npm ci
+          npm run build
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

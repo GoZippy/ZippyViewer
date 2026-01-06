@@ -17,16 +17,14 @@ env:
     --bin zrc-relay
     --bin zrc-rendezvous
     --bin zrc-admin-console
+  # Note: zrc-agent and zrc-desktop excluded until platform crates are wired up
   MACOS_BINS: >-
-    --bin zrc-agent
-    --bin zrc-desktop
     --bin zrc-dirnode
     --bin zrc-relay
     --bin zrc-rendezvous
     --bin zrc-admin-console
+  # Note: zrc-agent and zrc-desktop excluded until platform crates are wired up
   LINUX_BINS: >-
-    --bin zrc-agent
-    --bin zrc-desktop
     --bin zrc-dirnode
     --bin zrc-relay
     --bin zrc-rendezvous

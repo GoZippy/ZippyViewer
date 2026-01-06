@@ -104,7 +104,7 @@ pub async fn setup_tls_reload_handler(_tls_config: TlsConfig) {
             }
         };
 
-        if let Some(ref mut sighup) = sighup {
+        if let Some(mut sighup) = sighup {
             let tls_config = _tls_config;
             tokio::spawn(async move {
                 loop {

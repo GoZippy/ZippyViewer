@@ -103,6 +103,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: zippy-remote
+          shared-key: v2-windows
       
       - name: Build release
         working-directory: zippy-remote
@@ -138,6 +139,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: zippy-remote
+          shared-key: v2-macos
       
       - name: Build x86_64
         working-directory: zippy-remote
